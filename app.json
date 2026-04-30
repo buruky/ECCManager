@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "ECC Manager",
+    "slug": "eccmanager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "org.eritreancommunityconnections.eccmanager"
+    },
+    "android": {
+      "package": "org.eritreancommunityconnections.eccmanager"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
