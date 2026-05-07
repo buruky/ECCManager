@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, TextInput, TouchableOpacity, Text, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, TextInput, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useCases } from '@/contexts/CasesContext';
 import { Ionicons } from '@expo/vector-icons';
 import { getAllCases } from '@/services/caseService';
 import { Case } from '@/types';
@@ -11,6 +12,7 @@ import CaseCard from '@/components/CaseCard';
 
 export default function AllCasesScreen() {
   const navigation = useNavigation<any>();
+  const { casesVersion } = useCases();
   const [cases, setCases] = useState<Case[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -19,7 +21,7 @@ export default function AllCasesScreen() {
     setCases(await getAllCases());
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [casesVersion]);
 
   async function onRefresh() {
     setRefreshing(true);

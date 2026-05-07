@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCases } from '@/contexts/CasesContext';
 import { getCaseById, updateCaseStatus, deleteCase } from '@/services/caseService';
 import { Case } from '@/types';
 import { COLORS, CASE_STATUSES } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
+import CaseInfoSection from './sections/CaseInfoSection';
 import IntakeSection from './sections/IntakeSection';
 import ConsentFormsSection from './sections/ConsentFormsSection';
 import ServiceRecordsSection from './sections/ServiceRecordsSection';
@@ -18,6 +20,7 @@ import CommunicationLogSection from './sections/CommunicationLogSection';
 import SupportingDocumentsSection from './sections/SupportingDocumentsSection';
 
 const SECTIONS = [
+  { key: 'info', label: 'Case Info', icon: 'information-circle-outline' },
   { key: 'intake', label: 'Intake', icon: 'person-outline' },
   { key: 'consent', label: 'Consent Forms', icon: 'document-text-outline' },
   { key: 'services', label: 'Service Records', icon: 'briefcase-outline' },
@@ -38,6 +41,7 @@ export default function CaseDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { user } = useAuth();
+  const { notifyCasesChanged } = useCases();
   const { caseId } = route.params as { caseId: string };
 
   const [caseData, setCaseData] = useState<Case | null>(null);
@@ -87,7 +91,8 @@ export default function CaseDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             await deleteCase(caseId, caseData.clientName, user!.uid, user!.name);
-            navigation.goBack();
+            notifyCasesChanged();
+            navigation.popToTop();
           },
         },
       ]
@@ -137,6 +142,16 @@ export default function CaseDetailScreen() {
         </Text>
       </View>
 
+      {isSupervisor && (
+        <TouchableOpacity style={styles.assignRow} onPress={() => navigation.navigate('CaseAssignment', { caseId })}>
+          <Ionicons name="person-add-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.assignRowText}>
+            {caseData.assignedCaseManagerName ? `Reassign · ${caseData.assignedCaseManagerName}` : 'Assign Case Manager'}
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      )}
+
       {/* Section tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer} contentContainerStyle={styles.tabs}>
         {SECTIONS.map(s => (
@@ -157,6 +172,7 @@ export default function CaseDetailScreen() {
 
       {/* Section content */}
       <View style={styles.sectionContent}>
+        {activeSection === 'info' && <CaseInfoSection caseId={caseId} />}
         {activeSection === 'intake' && <IntakeSection caseId={caseId} />}
         {activeSection === 'consent' && <ConsentFormsSection caseId={caseId} />}
         {activeSection === 'services' && <ServiceRecordsSection caseId={caseId} />}
@@ -187,6 +203,10 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: 13, fontWeight: '700' },
   metaSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  assignBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  assignBtnText: { fontSize: 13, color: '#fff', fontWeight: '600' },
+  assignRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  assignRowText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.primary },
   tabsContainer: { maxHeight: 52, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   tabs: { paddingHorizontal: 8, alignItems: 'center', gap: 4 },
   tab: {

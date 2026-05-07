@@ -6,6 +6,7 @@ import { COLORS } from '@/utils/constants';
 
 import SupervisorDashboardScreen from '@/screens/supervisor/SupervisorDashboardScreen';
 import SupervisorCasesScreen from '@/screens/supervisor/SupervisorCasesScreen';
+import SupervisorCaseDetailScreen from '@/screens/supervisor/SupervisorCaseDetailScreen';
 import CaseAssignmentScreen from '@/screens/supervisor/CaseAssignmentScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
@@ -17,6 +18,7 @@ function CasesStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SupervisorCases" component={SupervisorCasesScreen} />
+      <Stack.Screen name="SupervisorCaseDetail" component={SupervisorCaseDetailScreen} />
       <Stack.Screen name="CaseAssignment" component={CaseAssignmentScreen} />
       <Stack.Screen name="CaseDetail" component={CaseDetailScreen} />
     </Stack.Navigator>

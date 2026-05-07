@@ -29,30 +29,15 @@ export async function getCasesByManager(uid: string): Promise<Case[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
 }
 
-// Returns cases a supervisor owns + unassigned cases of their program.
-// supervisorProgram = null means the supervisor has no program tag (legacy) — fall back to id-only.
+// Returns all cases in the supervisor's program. Falls back to cases they own if no program is set.
+// Sorting is done in-memory to avoid requiring composite Firestore indexes.
 export async function getCasesBySupervisor(uid: string, supervisorProgram?: 'prime' | 'wamass'): Promise<Case[]> {
-  const ownedSnap = await getDocs(
-    query(collection(db, COLLECTIONS.CASES), where('supervisorId', '==', uid), orderBy('createdAt', 'desc'))
-  );
-  const owned = ownedSnap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+  const snap = supervisorProgram
+    ? await getDocs(query(collection(db, COLLECTIONS.CASES), where('program', '==', supervisorProgram)))
+    : await getDocs(query(collection(db, COLLECTIONS.CASES), where('supervisorId', '==', uid)));
 
-  if (!supervisorProgram) return owned;
-
-  const unassignedSnap = await getDocs(
-    query(
-      collection(db, COLLECTIONS.CASES),
-      where('program', '==', supervisorProgram),
-      where('supervisorId', '==', null),
-      orderBy('createdAt', 'desc')
-    )
-  );
-  const unassigned = unassignedSnap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
-
-  const seen = new Set(owned.map(c => c.id));
-  const merged = [...owned, ...unassigned.filter(c => !seen.has(c.id))];
-  merged.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return merged;
+  const cases = snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+  return cases.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 export async function getCaseById(caseId: string): Promise<Case | null> {
@@ -62,7 +47,14 @@ export async function getCaseById(caseId: string): Promise<Case | null> {
 }
 
 export async function createCase(
-  data: { clientName: string; program: Case['program'] },
+  data: {
+    clientName: string;
+    program: Case['program'];
+    referralSource: string;
+    referralReason: string;
+    eligibilityCriteria: string;
+    intakeDate: string;
+  },
   actorId: string,
   actorName: string
 ): Promise<Case> {
@@ -70,6 +62,10 @@ export async function createCase(
   const newCase: Omit<Case, 'id'> = {
     clientName: data.clientName,
     program: data.program,
+    referralSource: data.referralSource,
+    referralReason: data.referralReason,
+    eligibilityCriteria: data.eligibilityCriteria,
+    intakeDate: data.intakeDate,
     status: 'pending',
     assignedCaseManagerId: null,
     assignedCaseManagerName: null,
@@ -90,6 +86,23 @@ export async function createCase(
     details: `Created ${data.program ?? 'untagged'} case for client: ${data.clientName}`,
   });
   return { id: ref.id, ...newCase };
+}
+
+export async function updateCaseInfo(
+  caseId: string,
+  data: { clientName: string; referralSource: string; referralReason: string; eligibilityCriteria: string; intakeDate: string },
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.CASES, caseId), { ...data, updatedAt: new Date().toISOString() });
+  await writeAuditLog({
+    userId: actorId,
+    userName: actorName,
+    action: 'UPDATE_CASE_INFO',
+    targetType: 'case',
+    targetId: caseId,
+    details: `Updated case info for client: ${data.clientName}`,
+  });
 }
 
 export async function updateCaseStatus(
@@ -154,6 +167,7 @@ export async function deleteCase(
     COLLECTIONS.COMMUNICATION_LOG,
     COLLECTIONS.DOCUMENTS,
     COLLECTIONS.TASKS,
+    COLLECTIONS.NOTIFICATIONS,
   ];
   await Promise.all(
     relatedCollections.map(async col => {

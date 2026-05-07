@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { useCases } from '@/contexts/CasesContext';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllCases } from '@/services/caseService';
 import { getAllUsers } from '@/services/userService';
@@ -11,7 +14,9 @@ import ScreenHeader from '@/components/ScreenHeader';
 interface Stat { label: string; value: number; color: string }
 
 export default function ManagerDashboardScreen() {
+  const navigation = useNavigation<any>();
   const { user, signOut } = useAuth();
+  const { casesVersion } = useCases();
   const [cases, setCases] = useState<Case[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,7 +27,7 @@ export default function ManagerDashboardScreen() {
     setUsers(u);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [casesVersion]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -62,10 +67,26 @@ export default function ManagerDashboardScreen() {
 
         <Text style={styles.sectionTitle}>Recent Cases</Text>
         {cases.slice(0, 5).map(c => (
-          <View key={c.id} style={styles.recentItem}>
-            <Text style={styles.recentName}>{c.clientName}</Text>
-            <Text style={styles.recentSub}>{c.assignedCaseManagerName ?? 'Unassigned'}</Text>
-          </View>
+          <TouchableOpacity
+            key={c.id}
+            style={[styles.recentItem, { borderLeftColor: c.assignedCaseManagerId ? COLORS.success : COLORS.warning }]}
+            onPress={() => navigation.navigate('Cases', { screen: 'CaseDetail', params: { caseId: c.id } })}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recentName}>{c.clientName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <Ionicons
+                  name={c.assignedCaseManagerId ? 'person-circle-outline' : 'alert-circle-outline'}
+                  size={13}
+                  color={c.assignedCaseManagerId ? COLORS.success : COLORS.warning}
+                />
+                <Text style={[styles.recentSub, { color: c.assignedCaseManagerId ? COLORS.success : COLORS.warning }]}>
+                  {c.assignedCaseManagerName ?? 'Needs Assignment'}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -114,7 +135,8 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 8,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderLeftWidth: 4,
   },
   recentName: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   recentSub: { fontSize: 13, color: COLORS.textSecondary },

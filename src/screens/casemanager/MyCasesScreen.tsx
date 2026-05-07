@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCases } from '@/contexts/CasesContext';
 import { getCasesByManager } from '@/services/caseService';
 import { Case } from '@/types';
 import { COLORS } from '@/utils/constants';
@@ -13,6 +14,7 @@ import CaseCard from '@/components/CaseCard';
 export default function MyCasesScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { casesVersion } = useCases();
   const [cases, setCases] = useState<Case[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -21,7 +23,7 @@ export default function MyCasesScreen() {
     if (user) setCases(await getCasesByManager(user.uid));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [casesVersion]);
 
   async function onRefresh() {
     setRefreshing(true);

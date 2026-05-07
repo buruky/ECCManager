@@ -25,8 +25,7 @@ export default function CaseAssignmentScreen() {
   useEffect(() => {
     Promise.all([getCaseById(caseId), getUsersByRole('caseManager')]).then(([c, cms]) => {
       setCaseData(c);
-      // Only show case managers under this supervisor
-      setCaseManagers(cms.filter(cm => cm.supervisorId === user?.uid));
+      setCaseManagers(cms);
     });
   }, []);
 

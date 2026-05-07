@@ -20,7 +20,7 @@ export interface AppUser {
 export interface Case {
   id: string;
   clientName: string;
-  program: Program | null; // null for legacy cases created before this field existed
+  program: Program | null;
   status: CaseStatus;
   assignedCaseManagerId: string | null;
   assignedCaseManagerName: string | null;
@@ -31,6 +31,11 @@ export interface Case {
   createdAt: string;
   updatedAt: string;
   closedAt?: string;
+  // Required at creation, manager-only editable
+  referralSource: string;
+  referralReason: string;
+  eligibilityCriteria: string;
+  intakeDate: string;
 }
 
 export interface CaseSection {

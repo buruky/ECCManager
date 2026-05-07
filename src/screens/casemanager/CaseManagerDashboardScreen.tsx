@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCases } from '@/contexts/CasesContext';
 import { getCasesByManager, getTasksForUser, completeTask } from '@/services/caseService';
 import { Case, Task } from '@/types';
 import { COLORS } from '@/utils/constants';
@@ -20,7 +21,9 @@ export default function CaseManagerDashboardScreen() {
     setTasks(t);
   }
 
-  useEffect(() => { load(); }, []);
+  const { casesVersion } = useCases();
+
+  useEffect(() => { load(); }, [casesVersion]);
 
   async function onRefresh() {
     setRefreshing(true);
