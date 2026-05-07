@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCases } from '@/contexts/CasesContext';
@@ -59,7 +59,7 @@ export default function CaseDetailScreen() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useFocusEffect(useCallback(() => { load(); }, [caseId]));
 
   function showStatusPicker() {
     if (!caseData) return;
@@ -142,7 +142,7 @@ export default function CaseDetailScreen() {
         </Text>
       </View>
 
-      {isSupervisor && (
+      {(isSupervisor || isManager) && (
         <TouchableOpacity style={styles.assignRow} onPress={() => navigation.navigate('CaseAssignment', { caseId })}>
           <Ionicons name="person-add-outline" size={16} color={COLORS.primary} />
           <Text style={styles.assignRowText}>

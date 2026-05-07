@@ -19,13 +19,19 @@ export default function CaseAssignmentScreen() {
 
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [caseManagers, setCaseManagers] = useState<AppUser[]>([]);
+  const [supervisors, setSupervisors] = useState<AppUser[]>([]);
   const [selected, setSelected] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  const isManager = user?.role === 'manager';
+
   useEffect(() => {
-    Promise.all([getCaseById(caseId), getUsersByRole('caseManager')]).then(([c, cms]) => {
+    const fetches: Promise<any>[] = [getCaseById(caseId), getUsersByRole('caseManager')];
+    if (isManager) fetches.push(getUsersByRole('supervisor'));
+    Promise.all(fetches).then(([c, cms, sups]) => {
       setCaseData(c);
       setCaseManagers(cms);
+      if (sups) setSupervisors(sups);
     });
   }, []);
 
@@ -33,14 +39,26 @@ export default function CaseAssignmentScreen() {
     const cm = caseManagers.find(c => c.uid === selected);
     if (!cm || !caseData) return;
     setLoading(true);
+
+    let supervisorId: string;
+    let supervisorName: string;
+    if (isManager) {
+      const sup = supervisors.find(s => s.uid === cm.supervisorId);
+      supervisorId = sup?.uid ?? '';
+      supervisorName = sup?.name ?? '';
+    } else {
+      supervisorId = user!.uid;
+      supervisorName = user!.name;
+    }
+
     try {
       await assignCaseManager(
         caseId,
         caseData.clientName,
         cm.uid,
         cm.name,
-        user!.uid,
-        user!.name,
+        supervisorId,
+        supervisorName,
         user!.uid,
         user!.name
       );
@@ -77,7 +95,7 @@ export default function CaseAssignmentScreen() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>No case managers under your supervision yet.</Text>
+          <Text style={styles.empty}>No active case managers found.</Text>
         }
       />
       {selected ? (

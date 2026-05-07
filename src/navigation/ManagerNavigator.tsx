@@ -12,6 +12,7 @@ import CreateUserScreen from '@/screens/manager/CreateUserScreen';
 import EditUserScreen from '@/screens/manager/EditUserScreen';
 import AuditLogScreen from '@/screens/manager/AuditLogScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
+import CaseAssignmentScreen from '@/screens/supervisor/CaseAssignmentScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
 
 const Tab = createBottomTabNavigator();
@@ -23,6 +24,7 @@ function CasesStack() {
       <Stack.Screen name="AllCases" component={AllCasesScreen} />
       <Stack.Screen name="CreateCase" component={CreateCaseScreen} />
       <Stack.Screen name="CaseDetail" component={CaseDetailScreen} />
+      <Stack.Screen name="CaseAssignment" component={CaseAssignmentScreen} />
     </Stack.Navigator>
   );
 }
