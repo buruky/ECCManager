@@ -9,6 +9,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
 } from 'firebase/firestore';
 import { ref as storageRef, listAll, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
@@ -24,9 +25,10 @@ export async function getAllCases(): Promise<Case[]> {
 
 export async function getCasesByManager(uid: string): Promise<Case[]> {
   const snap = await getDocs(
-    query(collection(db, COLLECTIONS.CASES), where('assignedCaseManagerId', '==', uid), orderBy('createdAt', 'desc'))
+    query(collection(db, COLLECTIONS.CASES), where('assignedCaseManagerId', '==', uid))
   );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+  const cases = snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+  return cases.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 // Returns all cases in the supervisor's program. Falls back to cases they own if no program is set.
@@ -44,6 +46,22 @@ export async function getCaseById(caseId: string): Promise<Case | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.CASES, caseId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as Case;
+}
+
+export async function getCaseCompletionStatus(caseId: string): Promise<Record<string, boolean>> {
+  const hasOne = (col: string) =>
+    getDocs(query(collection(db, col), where('caseId', '==', caseId), limit(1))).then(s => !s.empty);
+
+  const [intake, consent, services, notes, communication, documents] = await Promise.all([
+    getCaseSection(caseId, 'intake').then(s => !!s),
+    getCaseSection(caseId, 'consentForms').then(s => !!s),
+    getCaseSection(caseId, 'serviceRecords').then(s => !!s),
+    hasOne(COLLECTIONS.CASE_NOTES),
+    hasOne(COLLECTIONS.COMMUNICATION_LOG),
+    hasOne(COLLECTIONS.DOCUMENTS),
+  ]);
+
+  return { info: true, intake, consent, services, notes, communication, documents };
 }
 
 export async function createCase(
@@ -292,9 +310,10 @@ export async function addCommunicationEntry(
 // Tasks
 export async function getTasksForUser(userId: string): Promise<Task[]> {
   const snap = await getDocs(
-    query(collection(db, COLLECTIONS.TASKS), where('assignedTo', '==', userId), where('isCompleted', '==', false), orderBy('dueDate', 'asc'))
+    query(collection(db, COLLECTIONS.TASKS), where('assignedTo', '==', userId), where('isCompleted', '==', false))
   );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+  const tasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+  return tasks.sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
 }
 
 export async function createTask(

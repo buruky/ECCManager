@@ -12,6 +12,15 @@ import ReportBugScreen from '@/screens/shared/ReportBugScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+function DashboardStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DashboardHome" component={CaseManagerDashboardScreen} />
+      <Stack.Screen name="CaseDetail" component={CaseDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function CasesStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -39,7 +48,7 @@ export default function CaseManagerNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={CaseManagerDashboardScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardStack} />
       <Tab.Screen name="Cases" component={CasesStack} options={{ tabBarLabel: 'My Cases' }} />
       <Tab.Screen name="ReportBug" component={ReportBugScreen} options={{ tabBarLabel: 'Report Bug' }} />
     </Tab.Navigator>

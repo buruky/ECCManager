@@ -7,7 +7,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCases } from '@/contexts/CasesContext';
-import { getCaseById, updateCaseStatus, deleteCase } from '@/services/caseService';
+import { getCaseById, updateCaseStatus, deleteCase, getCaseCompletionStatus } from '@/services/caseService';
 import { Case } from '@/types';
 import { COLORS, CASE_STATUSES } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -47,6 +47,7 @@ export default function CaseDetailScreen() {
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [activeSection, setActiveSection] = useState<SectionKey>('intake');
   const [loading, setLoading] = useState(true);
+  const [completion, setCompletion] = useState<Record<string, boolean> | null>(null);
 
   const isManager = user?.role === 'manager';
   const isSupervisor = user?.role === 'supervisor';
@@ -55,11 +56,25 @@ export default function CaseDetailScreen() {
 
   async function load() {
     setLoading(true);
-    setCaseData(await getCaseById(caseId));
+    const [c, comp] = await Promise.all([
+      getCaseById(caseId),
+      getCaseCompletionStatus(caseId),
+    ]);
+    setCaseData(c);
+    setCompletion(comp);
     setLoading(false);
   }
 
+  async function refreshCompletion() {
+    setCompletion(await getCaseCompletionStatus(caseId));
+  }
+
   useFocusEffect(useCallback(() => { load(); }, [caseId]));
+
+  function handleTabChange(key: SectionKey) {
+    setActiveSection(key);
+    refreshCompletion();
+  }
 
   function showStatusPicker() {
     if (!caseData) return;
@@ -117,6 +132,9 @@ export default function CaseDetailScreen() {
     );
   }
 
+  const doneCount = completion ? Object.values(completion).filter(Boolean).length : 0;
+  const totalSections = SECTIONS.length;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
@@ -142,6 +160,18 @@ export default function CaseDetailScreen() {
         </Text>
       </View>
 
+      {/* Section progress bar */}
+      {completion && (
+        <View style={styles.progressRow}>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${(doneCount / totalSections) * 100}%` as any }]} />
+          </View>
+          <Text style={styles.progressLabel}>
+            {doneCount}/{totalSections} sections filled
+          </Text>
+        </View>
+      )}
+
       {(isSupervisor || isManager) && (
         <TouchableOpacity style={styles.assignRow} onPress={() => navigation.navigate('CaseAssignment', { caseId })}>
           <Ionicons name="person-add-outline" size={16} color={COLORS.primary} />
@@ -154,20 +184,27 @@ export default function CaseDetailScreen() {
 
       {/* Section tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsContainer} contentContainerStyle={styles.tabs}>
-        {SECTIONS.map(s => (
-          <TouchableOpacity
-            key={s.key}
-            style={[styles.tab, activeSection === s.key && styles.tabActive]}
-            onPress={() => setActiveSection(s.key)}
-          >
-            <Ionicons
-              name={s.icon as any}
-              size={16}
-              color={activeSection === s.key ? COLORS.primary : COLORS.textSecondary}
-            />
-            <Text style={[styles.tabText, activeSection === s.key && styles.tabTextActive]}>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {SECTIONS.map(s => {
+          const isActive = activeSection === s.key;
+          const isDone = completion?.[s.key] ?? false;
+          return (
+            <TouchableOpacity
+              key={s.key}
+              style={[styles.tab, isActive && styles.tabActive]}
+              onPress={() => handleTabChange(s.key)}
+            >
+              <Ionicons
+                name={s.icon as any}
+                size={16}
+                color={isActive ? COLORS.primary : COLORS.textSecondary}
+              />
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{s.label}</Text>
+              {completion && (
+                <View style={[styles.completionDot, { backgroundColor: isDone ? COLORS.success : COLORS.border }]} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Section content */}
@@ -203,11 +240,52 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: 13, fontWeight: '700' },
   metaSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
-  assignBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  assignBtnText: { fontSize: 13, color: '#fff', fontWeight: '600' },
-  assignRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surface, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: COLORS.border,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.success,
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    minWidth: 90,
+    textAlign: 'right',
+  },
+  assignRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
   assignRowText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.primary },
-  tabsContainer: { maxHeight: 52, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  tabsContainer: {
+    maxHeight: 52,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
   tabs: { paddingHorizontal: 8, alignItems: 'center', gap: 4 },
   tab: {
     flexDirection: 'row',
@@ -221,6 +299,12 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: COLORS.primary },
   tabText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
   tabTextActive: { color: COLORS.primary },
+  completionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginLeft: 2,
+  },
   sectionContent: { flex: 1 },
   empty: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 48 },
 });
