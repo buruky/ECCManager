@@ -9,9 +9,9 @@ import {
   query,
   where,
   orderBy,
-  serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { ref as storageRef, listAll, deleteObject } from 'firebase/storage';
+import { db, storage } from '@/config/firebase';
 import { Case, CaseSection, CaseNote, CommunicationEntry, Task } from '@/types';
 import { COLLECTIONS } from '@/utils/constants';
 import { writeAuditLog } from './auditService';
@@ -29,11 +29,30 @@ export async function getCasesByManager(uid: string): Promise<Case[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
 }
 
-export async function getCasesBySupervisor(uid: string): Promise<Case[]> {
-  const snap = await getDocs(
+// Returns cases a supervisor owns + unassigned cases of their program.
+// supervisorProgram = null means the supervisor has no program tag (legacy) — fall back to id-only.
+export async function getCasesBySupervisor(uid: string, supervisorProgram?: 'prime' | 'wamass'): Promise<Case[]> {
+  const ownedSnap = await getDocs(
     query(collection(db, COLLECTIONS.CASES), where('supervisorId', '==', uid), orderBy('createdAt', 'desc'))
   );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+  const owned = ownedSnap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+
+  if (!supervisorProgram) return owned;
+
+  const unassignedSnap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.CASES),
+      where('program', '==', supervisorProgram),
+      where('supervisorId', '==', null),
+      orderBy('createdAt', 'desc')
+    )
+  );
+  const unassigned = unassignedSnap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
+
+  const seen = new Set(owned.map(c => c.id));
+  const merged = [...owned, ...unassigned.filter(c => !seen.has(c.id))];
+  merged.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return merged;
 }
 
 export async function getCaseById(caseId: string): Promise<Case | null> {
@@ -43,13 +62,14 @@ export async function getCaseById(caseId: string): Promise<Case | null> {
 }
 
 export async function createCase(
-  data: { clientName: string },
+  data: { clientName: string; program: Case['program'] },
   actorId: string,
   actorName: string
 ): Promise<Case> {
   const now = new Date().toISOString();
   const newCase: Omit<Case, 'id'> = {
     clientName: data.clientName,
+    program: data.program,
     status: 'pending',
     assignedCaseManagerId: null,
     assignedCaseManagerName: null,
@@ -67,7 +87,7 @@ export async function createCase(
     action: 'CREATE_CASE',
     targetType: 'case',
     targetId: ref.id,
-    details: `Created case for client: ${data.clientName}`,
+    details: `Created ${data.program ?? 'untagged'} case for client: ${data.clientName}`,
   });
   return { id: ref.id, ...newCase };
 }
@@ -127,6 +147,30 @@ export async function deleteCase(
   actorId: string,
   actorName: string
 ): Promise<void> {
+  // Delete all related Firestore subcollections in parallel
+  const relatedCollections = [
+    COLLECTIONS.CASE_SECTIONS,
+    COLLECTIONS.CASE_NOTES,
+    COLLECTIONS.COMMUNICATION_LOG,
+    COLLECTIONS.DOCUMENTS,
+    COLLECTIONS.TASKS,
+  ];
+  await Promise.all(
+    relatedCollections.map(async col => {
+      const snap = await getDocs(query(collection(db, col), where('caseId', '==', caseId)));
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+    })
+  );
+
+  // Delete uploaded files from Storage
+  try {
+    const folder = storageRef(storage, `documents/${caseId}`);
+    const listed = await listAll(folder);
+    await Promise.all(listed.items.map(item => deleteObject(item)));
+  } catch {
+    // Folder may not exist if no files were ever uploaded
+  }
+
   await deleteDoc(doc(db, COLLECTIONS.CASES, caseId));
   await writeAuditLog({
     userId: actorId,

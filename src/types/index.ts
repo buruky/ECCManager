@@ -1,5 +1,7 @@
 export type UserRole = 'manager' | 'supervisor' | 'caseManager';
 
+export type Program = 'prime' | 'wamass' | 'other';
+
 export type CaseStatus = 'pending' | 'active' | 'onHold';
 
 export interface AppUser {
@@ -9,6 +11,7 @@ export interface AppUser {
   phone: string;
   role: UserRole;
   supervisorId?: string; // set for caseManagers
+  program?: 'prime' | 'wamass'; // set for supervisors
   isActive: boolean;
   createdAt: string;
   createdBy: string;
@@ -17,6 +20,7 @@ export interface AppUser {
 export interface Case {
   id: string;
   clientName: string;
+  program: Program | null; // null for legacy cases created before this field existed
   status: CaseStatus;
   assignedCaseManagerId: string | null;
   assignedCaseManagerName: string | null;

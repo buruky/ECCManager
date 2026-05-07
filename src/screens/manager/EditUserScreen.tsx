@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform
+  Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
-import { createUser, getUsersByRole } from '@/services/userService';
+import { updateUser, getUsersByRole } from '@/services/userService';
 import { AppUser, UserRole } from '@/types';
 import { COLORS, SUPERVISOR_PROGRAMS } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -17,16 +17,19 @@ const ROLES: { label: string; value: UserRole }[] = [
   { label: 'Case Manager', value: 'caseManager' },
 ];
 
-export default function CreateUserScreen() {
+export default function EditUserScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('caseManager');
-  const [supervisorId, setSupervisorId] = useState('');
-  const [supervisorProgram, setSupervisorProgram] = useState<'prime' | 'wamass' | ''>('');
+  const route = useRoute<any>();
+  const { user: actor } = useAuth();
+  const target: AppUser = route.params.user;
+
+  const [name, setName] = useState(target.name);
+  const [phone, setPhone] = useState(target.phone);
+  const [role, setRole] = useState<UserRole>(target.role);
+  const [supervisorId, setSupervisorId] = useState(target.supervisorId ?? '');
+  const [supervisorProgram, setSupervisorProgram] = useState<'prime' | 'wamass' | ''>(
+    target.program ?? ''
+  );
   const [supervisors, setSupervisors] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,9 +37,9 @@ export default function CreateUserScreen() {
     getUsersByRole('supervisor').then(setSupervisors);
   }, []);
 
-  async function handleCreate() {
-    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
-      Alert.alert('Error', 'All fields are required.');
+  async function handleSave() {
+    if (!name.trim() || !phone.trim()) {
+      Alert.alert('Error', 'Name and phone are required.');
       return;
     }
     if (role === 'caseManager' && !supervisorId) {
@@ -49,23 +52,22 @@ export default function CreateUserScreen() {
     }
     setLoading(true);
     try {
-      await createUser(
+      await updateUser(
+        target.uid,
         {
           name: name.trim(),
-          email: email.trim(),
           phone: phone.trim(),
-          password,
           role,
-          supervisorId: supervisorId || undefined,
+          supervisorId: role === 'caseManager' ? supervisorId : undefined,
           program: role === 'supervisor' ? (supervisorProgram as 'prime' | 'wamass') : undefined,
         },
-        user!.uid,
-        user!.name
+        actor!.uid,
+        actor!.name
       );
-      Alert.alert('Success', `${name} has been added as a ${role}.`);
+      Alert.alert('Saved', `${name} has been updated.`);
       navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'Failed to create user.');
+    } catch {
+      Alert.alert('Error', 'Failed to save changes. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -73,29 +75,31 @@ export default function CreateUserScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Add Staff Member" showBack />
+      <ScreenHeader title="Edit Staff Member" showBack />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.form}>
-          {[
-            { label: 'Full Name *', value: name, setter: setName, placeholder: 'Jane Doe', capitalize: 'words' as const },
-            { label: 'Email *', value: email, setter: setEmail, placeholder: 'jane@example.com', keyboard: 'email-address' as const },
-            { label: 'Phone *', value: phone, setter: setPhone, placeholder: '+1 (555) 000-0000', keyboard: 'phone-pad' as const },
-            { label: 'Temporary Password *', value: password, setter: setPassword, placeholder: 'Min 8 characters', secure: true },
-          ].map(f => (
-            <View key={f.label}>
-              <Text style={styles.label}>{f.label}</Text>
-              <TextInput
-                style={styles.input}
-                value={f.value}
-                onChangeText={f.setter}
-                placeholder={f.placeholder}
-                placeholderTextColor={COLORS.textSecondary}
-                keyboardType={f.keyboard}
-                autoCapitalize={f.capitalize ?? 'none'}
-                secureTextEntry={f.secure}
-              />
-            </View>
-          ))}
+
+          <Text style={styles.emailNote}>{target.email}</Text>
+
+          <Text style={styles.label}>Full Name *</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="Full name"
+            placeholderTextColor={COLORS.textSecondary}
+            autoCapitalize="words"
+          />
+
+          <Text style={styles.label}>Phone *</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+1 (555) 000-0000"
+            placeholderTextColor={COLORS.textSecondary}
+            keyboardType="phone-pad"
+          />
 
           <Text style={styles.label}>Role *</Text>
           <View style={styles.roleRow}>
@@ -103,7 +107,11 @@ export default function CreateUserScreen() {
               <TouchableOpacity
                 key={r.value}
                 style={[styles.roleBtn, role === r.value && styles.roleBtnActive]}
-                onPress={() => setRole(r.value)}
+                onPress={() => {
+                  setRole(r.value);
+                  setSupervisorId('');
+                  setSupervisorProgram('');
+                }}
               >
                 <Text style={[styles.roleBtnText, role === r.value && styles.roleBtnTextActive]}>
                   {r.label}
@@ -143,20 +151,25 @@ export default function CreateUserScreen() {
                   <Text style={[styles.supervisorBtnText, supervisorId === s.uid && styles.supervisorBtnTextActive]}>
                     {s.name}
                   </Text>
+                  {s.program && (
+                    <Text style={styles.supervisorProgramTag}>
+                      {s.program === 'prime' ? 'Prime' : 'WA-MASS'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               ))}
               {supervisors.length === 0 && (
-                <Text style={styles.hint}>No supervisors yet. Create a supervisor first.</Text>
+                <Text style={styles.hint}>No supervisors yet.</Text>
               )}
             </>
           )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleCreate}
+            onPress={handleSave}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Add Staff Member</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -167,6 +180,12 @@ export default function CreateUserScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   form: { padding: 24, paddingBottom: 48 },
+  emailNote: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
   label: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 6, marginTop: 16 },
   input: {
     backgroundColor: COLORS.surface,
@@ -196,10 +215,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   supervisorBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '11' },
   supervisorBtnText: { fontSize: 14, color: COLORS.text },
   supervisorBtnTextActive: { color: COLORS.primary, fontWeight: '600' },
+  supervisorProgramTag: { fontSize: 11, fontWeight: '700', color: COLORS.accent },
   hint: { fontSize: 13, color: COLORS.warning, marginTop: 4 },
   button: {
     backgroundColor: COLORS.primary,

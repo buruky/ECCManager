@@ -18,7 +18,7 @@ export default function SupervisorCasesScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function load() {
-    if (user) setCases(await getCasesBySupervisor(user.uid));
+    if (user) setCases(await getCasesBySupervisor(user.uid, user.program));
   }
 
   useEffect(() => { load(); }, []);

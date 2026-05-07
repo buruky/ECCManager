@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCasesBySupervisor } from '@/services/caseService';
 import { Case } from '@/types';
-import { COLORS } from '@/utils/constants';
+import { COLORS, PROGRAM_LABELS } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
 
 export default function SupervisorDashboardScreen() {
@@ -13,7 +13,7 @@ export default function SupervisorDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function load() {
-    if (user) setCases(await getCasesBySupervisor(user.uid));
+    if (user) setCases(await getCasesBySupervisor(user.uid, user.program));
   }
 
   useEffect(() => { load(); }, []);
@@ -31,7 +31,7 @@ export default function SupervisorDashboardScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
         title="Supervisor Dashboard"
-        subtitle={`Welcome, ${user?.name}`}
+        subtitle={`Welcome, ${user?.name} · ${user?.program ? PROGRAM_LABELS[user.program] : 'No program'}`}
         rightAction={{ icon: 'log-out-outline', onPress: signOut }}
       />
       <ScrollView

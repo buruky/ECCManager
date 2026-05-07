@@ -43,6 +43,7 @@ export async function createUser(
     phone: string;
     role: UserRole;
     supervisorId?: string;
+    program?: 'prime' | 'wamass';
     password: string;
   },
   createdBy: string,
@@ -50,37 +51,46 @@ export async function createUser(
 ): Promise<AppUser> {
   const secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
   const secondaryAuth = getAuth(secondaryApp);
-  let uid: string;
+  let authUser: { uid: string; delete: () => Promise<void> } | null = null;
+
   try {
     const credential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
-    uid = credential.user.uid;
+    authUser = credential.user;
+    const uid = authUser.uid;
+
+    const newUser: Omit<AppUser, 'uid'> = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: data.role,
+      ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
+      ...(data.program ? { program: data.program } : {}),
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      createdBy,
+    };
+
+    await setDoc(doc(db, COLLECTIONS.USERS, uid), newUser);
+
+    await writeAuditLog({
+      userId: createdBy,
+      userName: createdByName,
+      action: 'CREATE_USER',
+      targetType: 'user',
+      targetId: uid,
+      details: `Created ${data.role} account for ${data.name}`,
+    });
+
+    return { uid, ...newUser };
+  } catch (err) {
+    // Roll back the Auth account so it doesn't become an orphan
+    if (authUser) {
+      try { await authUser.delete(); } catch { /* best-effort */ }
+    }
+    throw err;
   } finally {
     await deleteApp(secondaryApp);
   }
-
-  const newUser: Omit<AppUser, 'uid'> = {
-    name: data.name,
-    email: data.email,
-    phone: data.phone,
-    role: data.role,
-    ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    createdBy,
-  };
-
-  await setDoc(doc(db, COLLECTIONS.USERS, uid), newUser);
-
-  await writeAuditLog({
-    userId: createdBy,
-    userName: createdByName,
-    action: 'CREATE_USER',
-    targetType: 'user',
-    targetId: uid,
-    details: `Created ${data.role} account for ${data.name}`,
-  });
-
-  return { uid, ...newUser };
 }
 
 export async function deactivateUser(
@@ -116,5 +126,34 @@ export async function updateUserRole(
     targetType: 'user',
     targetId: targetUid,
     details: `Changed role of ${targetName} to ${newRole}`,
+  });
+}
+
+export async function updateUser(
+  targetUid: string,
+  changes: {
+    name: string;
+    phone: string;
+    role: UserRole;
+    supervisorId?: string;
+    program?: 'prime' | 'wamass';
+  },
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.USERS, targetUid), {
+    name: changes.name,
+    phone: changes.phone,
+    role: changes.role,
+    supervisorId: changes.supervisorId ?? null,
+    program: changes.program ?? null,
+  });
+  await writeAuditLog({
+    userId: actorId,
+    userName: actorName,
+    action: 'UPDATE_USER',
+    targetType: 'user',
+    targetId: targetUid,
+    details: `Updated profile for ${changes.name} (${changes.role})`,
   });
 }

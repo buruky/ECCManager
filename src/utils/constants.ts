@@ -23,6 +23,23 @@ export const FONTS = {
 
 export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
 
+export const PROGRAMS: { label: string; value: string }[] = [
+  { label: 'Prime', value: 'prime' },
+  { label: 'WA-MASS', value: 'wamass' },
+  { label: 'Other', value: 'other' },
+];
+
+export const SUPERVISOR_PROGRAMS: { label: string; value: string }[] = [
+  { label: 'Prime', value: 'prime' },
+  { label: 'WA-MASS', value: 'wamass' },
+];
+
+export const PROGRAM_LABELS: Record<string, string> = {
+  prime: 'Prime',
+  wamass: 'WA-MASS',
+  other: 'Other',
+};
+
 export const CASE_STATUSES: { label: string; value: string }[] = [
   { label: 'Pending', value: 'pending' },
   { label: 'Active', value: 'active' },

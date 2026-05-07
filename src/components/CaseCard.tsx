@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Case } from '@/types';
-import { COLORS } from '@/utils/constants';
+import { COLORS, PROGRAM_LABELS } from '@/utils/constants';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: COLORS.pending,
@@ -31,6 +31,9 @@ export default function CaseCard({ item, onPress }: Props) {
           </Text>
         </View>
       </View>
+      {item.program && (
+        <Text style={styles.program}>{PROGRAM_LABELS[item.program]}</Text>
+      )}
       {item.assignedCaseManagerName ? (
         <Text style={styles.sub}>Case Manager: {item.assignedCaseManagerName}</Text>
       ) : (
@@ -74,6 +77,14 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  program: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.accent,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sub: {
     fontSize: 13,

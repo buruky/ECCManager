@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, FlatList,
-  ActivityIndicator, Alert
+  View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator,
+  Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { collection, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -13,11 +13,19 @@ import { Document } from '@/types';
 import { COLORS, COLLECTIONS } from '@/utils/constants';
 import { Ionicons } from '@expo/vector-icons';
 
+interface PendingUpload {
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+
 export default function SupportingDocumentsSection({ caseId }: { caseId: string }) {
   const { user } = useAuth();
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [pending, setPending] = useState<PendingUpload[]>([]);
+  const [showNaming, setShowNaming] = useState(false);
 
   const canUpload = user?.role === 'caseManager' || user?.role === 'manager';
 
@@ -32,40 +40,20 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
     setLoading(false);
   }
 
-  async function uploadFile(uri: string, name: string, mimeType: string) {
-    setUploading(true);
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const storageRef = ref(storage, `documents/${caseId}/${Date.now()}_${name}`);
-      await uploadBytes(storageRef, blob);
-      const url = await getDownloadURL(storageRef);
-      const now = new Date().toISOString();
-      await addDoc(collection(db, COLLECTIONS.DOCUMENTS), {
-        caseId,
-        name,
-        url,
-        type: mimeType,
-        uploadedBy: user!.uid,
-        uploadedByName: user!.name,
-        uploadedAt: now,
-      });
-      await loadDocs();
-    } catch {
-      Alert.alert('Upload Failed', 'Could not upload the file. Please try again.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handlePickFile() {
+  async function handlePickFiles() {
     const result = await DocumentPicker.getDocumentAsync({
       type: '*/*',
       copyToCacheDirectory: true,
+      multiple: true,
     });
     if (result.canceled) return;
-    const asset = result.assets[0];
-    await uploadFile(asset.uri, asset.name, asset.mimeType ?? 'application/octet-stream');
+    const items: PendingUpload[] = result.assets.map(a => ({
+      uri: a.uri,
+      name: a.name,
+      mimeType: a.mimeType ?? 'application/octet-stream',
+    }));
+    setPending(prev => [...prev, ...items]);
+    setShowNaming(true);
   }
 
   async function handleTakePhoto() {
@@ -77,8 +65,62 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (result.canceled) return;
     const asset = result.assets[0];
-    const fileName = `photo_${Date.now()}.jpg`;
-    await uploadFile(asset.uri, fileName, 'image/jpeg');
+    setPending(prev => [...prev, {
+      uri: asset.uri,
+      name: `Photo ${new Date().toLocaleDateString()}`,
+      mimeType: 'image/jpeg',
+    }]);
+    setShowNaming(true);
+  }
+
+  function updateName(index: number, name: string) {
+    setPending(prev => prev.map((p, i) => i === index ? { ...p, name } : p));
+  }
+
+  function removePending(index: number) {
+    setPending(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) setShowNaming(false);
+      return next;
+    });
+  }
+
+  function cancelNaming() {
+    setPending([]);
+    setShowNaming(false);
+  }
+
+  async function handleUploadAll() {
+    if (pending.some(p => !p.name.trim())) {
+      Alert.alert('Name Required', 'Please give each file a name before uploading.');
+      return;
+    }
+    setUploading(true);
+    setShowNaming(false);
+    const toUpload = [...pending];
+    setPending([]);
+    try {
+      for (const item of toUpload) {
+        const blob = await (await fetch(item.uri)).blob();
+        const storageRef = ref(storage, `documents/${caseId}/${Date.now()}_${item.name.trim()}`);
+        await uploadBytes(storageRef, blob);
+        const url = await getDownloadURL(storageRef);
+        await addDoc(collection(db, COLLECTIONS.DOCUMENTS), {
+          caseId,
+          name: item.name.trim(),
+          url,
+          type: item.mimeType,
+          uploadedBy: user!.uid,
+          uploadedByName: user!.name,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+      await loadDocs();
+    } catch {
+      Alert.alert('Upload Failed', 'One or more files could not be uploaded. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   const FILE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -91,11 +133,19 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
     <View style={{ flex: 1 }}>
       {canUpload && (
         <View style={styles.uploadRow}>
-          <TouchableOpacity style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]} onPress={handlePickFile} disabled={uploading}>
+          <TouchableOpacity
+            style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]}
+            onPress={handlePickFiles}
+            disabled={uploading}
+          >
             <Ionicons name="attach-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.uploadBtnText}>Attach File</Text>
+            <Text style={styles.uploadBtnText}>Attach Files</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]} onPress={handleTakePhoto} disabled={uploading}>
+          <TouchableOpacity
+            style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]}
+            onPress={handleTakePhoto}
+            disabled={uploading}
+          >
             <Ionicons name="camera-outline" size={18} color={COLORS.primary} />
             <Text style={styles.uploadBtnText}>Take Photo</Text>
           </TouchableOpacity>
@@ -129,6 +179,65 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
           ListEmptyComponent={<Text style={styles.empty}>No documents uploaded yet.</Text>}
         />
       )}
+
+      <Modal
+        visible={showNaming}
+        animationType="slide"
+        transparent
+        onRequestClose={cancelNaming}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Name Your Files ({pending.length})
+              </Text>
+              <TouchableOpacity onPress={cancelNaming}>
+                <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+              {pending.map((item, index) => (
+                <View key={index} style={styles.pendingRow}>
+                  <Ionicons
+                    name={FILE_ICONS[item.mimeType] ?? 'document-outline'}
+                    size={22}
+                    color={COLORS.accent}
+                    style={{ marginRight: 10 }}
+                  />
+                  <TextInput
+                    style={styles.nameInput}
+                    value={item.name}
+                    onChangeText={text => updateName(index, text)}
+                    placeholder="File name..."
+                    placeholderTextColor={COLORS.textSecondary}
+                    selectTextOnFocus
+                  />
+                  <TouchableOpacity onPress={() => removePending(index)} style={{ marginLeft: 8 }}>
+                    <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={cancelNaming}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.uploadAllBtn} onPress={handleUploadAll}>
+                <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                <Text style={styles.uploadAllBtnText}>
+                  Upload {pending.length} File{pending.length !== 1 ? 's' : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -169,4 +278,70 @@ const styles = StyleSheet.create({
   docName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   docMeta: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   empty: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 40 },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
+  modalScroll: { paddingHorizontal: 16, paddingTop: 12 },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  nameInput: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  cancelBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
+  uploadAllBtn: {
+    flex: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  uploadAllBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
 });

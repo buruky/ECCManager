@@ -9,6 +9,7 @@ import AllCasesScreen from '@/screens/manager/AllCasesScreen';
 import CreateCaseScreen from '@/screens/manager/CreateCaseScreen';
 import UserManagementScreen from '@/screens/manager/UserManagementScreen';
 import CreateUserScreen from '@/screens/manager/CreateUserScreen';
+import EditUserScreen from '@/screens/manager/EditUserScreen';
 import AuditLogScreen from '@/screens/manager/AuditLogScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
@@ -31,6 +32,7 @@ function UsersStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="UserManagement" component={UserManagementScreen} />
       <Stack.Screen name="CreateUser" component={CreateUserScreen} />
+      <Stack.Screen name="EditUser" component={EditUserScreen} />
     </Stack.Navigator>
   );
 }

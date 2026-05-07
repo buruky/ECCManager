@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAllUsers, deactivateUser } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppUser } from '@/types';
-import { COLORS } from '@/utils/constants';
+import { COLORS, PROGRAM_LABELS } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
 
 const ROLE_LABELS = { manager: 'Manager', supervisor: 'Supervisor', caseManager: 'Case Manager' };
@@ -22,7 +22,7 @@ export default function UserManagementScreen() {
     setUsers(await getAllUsers());
   }
 
-  useEffect(() => { load(); }, []);
+  useFocusEffect(useCallback(() => { load(); }, []));
 
   async function onRefresh() {
     setRefreshing(true);
@@ -72,13 +72,23 @@ export default function UserManagementScreen() {
                 </View>
               </View>
               <Text style={styles.email}>{item.email}</Text>
+              {item.role === 'supervisor' && (
+                <Text style={styles.program}>
+                  {item.program ? PROGRAM_LABELS[item.program] : 'No program assigned'}
+                </Text>
+              )}
               {!item.isActive && <Text style={styles.inactive}>Deactivated</Text>}
             </View>
-            {item.isActive && item.uid !== user?.uid && (
-              <TouchableOpacity onPress={() => confirmDeactivate(item)} style={styles.deactivateBtn}>
-                <Ionicons name="person-remove-outline" size={20} color={COLORS.error} />
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={() => navigation.navigate('EditUser', { user: item })} style={styles.actionBtn}>
+                <Ionicons name="create-outline" size={20} color={COLORS.accent} />
               </TouchableOpacity>
-            )}
+              {item.isActive && item.uid !== user?.uid && (
+                <TouchableOpacity onPress={() => confirmDeactivate(item)} style={styles.actionBtn}>
+                  <Ionicons name="person-remove-outline" size={20} color={COLORS.error} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.empty}>No staff members found.</Text>}
@@ -107,9 +117,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   name: { fontSize: 15, fontWeight: '600', color: COLORS.text, flex: 1 },
   email: { fontSize: 13, color: COLORS.textSecondary },
+  program: { fontSize: 12, color: COLORS.accent, marginTop: 2, fontWeight: '600' },
   inactive: { fontSize: 12, color: COLORS.error, marginTop: 2, fontWeight: '600' },
   badge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
   badgeText: { fontSize: 11, fontWeight: '700' },
-  deactivateBtn: { padding: 8 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actionBtn: { padding: 8 },
   empty: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 48 },
 });
