@@ -3,8 +3,11 @@ import {
   View, Text, TouchableOpacity, StyleSheet, FlatList,
   ActivityIndicator, Alert
 } from 'react-native';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { collection, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { db, storage } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types';
 import { COLORS, COLLECTIONS } from '@/utils/constants';
@@ -14,6 +17,7 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
   const { user } = useAuth();
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const canUpload = user?.role === 'caseManager' || user?.role === 'manager';
 
@@ -28,8 +32,53 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
     setLoading(false);
   }
 
-  function showComingSoon() {
-    Alert.alert('Coming Soon', 'Document uploads will be available once Firebase Storage is enabled.');
+  async function uploadFile(uri: string, name: string, mimeType: string) {
+    setUploading(true);
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `documents/${caseId}/${Date.now()}_${name}`);
+      await uploadBytes(storageRef, blob);
+      const url = await getDownloadURL(storageRef);
+      const now = new Date().toISOString();
+      await addDoc(collection(db, COLLECTIONS.DOCUMENTS), {
+        caseId,
+        name,
+        url,
+        type: mimeType,
+        uploadedBy: user!.uid,
+        uploadedByName: user!.name,
+        uploadedAt: now,
+      });
+      await loadDocs();
+    } catch {
+      Alert.alert('Upload Failed', 'Could not upload the file. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handlePickFile() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: '*/*',
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    await uploadFile(asset.uri, asset.name, asset.mimeType ?? 'application/octet-stream');
+  }
+
+  async function handleTakePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    const fileName = `photo_${Date.now()}.jpg`;
+    await uploadFile(asset.uri, fileName, 'image/jpeg');
   }
 
   const FILE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -42,14 +91,15 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
     <View style={{ flex: 1 }}>
       {canUpload && (
         <View style={styles.uploadRow}>
-          <TouchableOpacity style={styles.uploadBtn} onPress={showComingSoon}>
+          <TouchableOpacity style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]} onPress={handlePickFile} disabled={uploading}>
             <Ionicons name="attach-outline" size={18} color={COLORS.primary} />
             <Text style={styles.uploadBtnText}>Attach File</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.uploadBtn} onPress={showComingSoon}>
+          <TouchableOpacity style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]} onPress={handleTakePhoto} disabled={uploading}>
             <Ionicons name="camera-outline" size={18} color={COLORS.primary} />
             <Text style={styles.uploadBtnText}>Take Photo</Text>
           </TouchableOpacity>
+          {uploading && <ActivityIndicator color={COLORS.primary} style={{ marginLeft: 8 }} />}
         </View>
       )}
 
@@ -103,6 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  uploadBtnDisabled: { opacity: 0.5 },
   uploadBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
   list: { padding: 12, paddingBottom: 40 },
   docCard: {

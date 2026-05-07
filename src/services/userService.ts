@@ -8,8 +8,9 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/config/firebase';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { db, firebaseConfig } from '@/config/firebase';
 import { AppUser, UserRole } from '@/types';
 import { COLLECTIONS } from '@/utils/constants';
 import { writeAuditLog } from './auditService';
@@ -47,15 +48,22 @@ export async function createUser(
   createdBy: string,
   createdByName: string
 ): Promise<AppUser> {
-  const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-  const uid = credential.user.uid;
+  const secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
+  let uid: string;
+  try {
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
+    uid = credential.user.uid;
+  } finally {
+    await deleteApp(secondaryApp);
+  }
 
   const newUser: Omit<AppUser, 'uid'> = {
     name: data.name,
     email: data.email,
     phone: data.phone,
     role: data.role,
-    supervisorId: data.supervisorId,
+    ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
     isActive: true,
     createdAt: new Date().toISOString(),
     createdBy,
