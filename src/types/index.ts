@@ -1,10 +1,12 @@
+import { Timestamp } from 'firebase/firestore';
+
 export type UserRole = 'manager' | 'supervisor' | 'caseManager';
 
 export type AccountStatus = 'pending' | 'approved';
 
 export type Program = 'prime' | 'wamass' | 'other';
 
-export type CaseStatus = 'pending' | 'active' | 'onHold';
+export type CaseStatus = 'pending' | 'active' | 'onHold' | 'closed';
 
 export interface AppUser {
   uid: string;
@@ -17,8 +19,8 @@ export interface AppUser {
   isActive: boolean;
   status?: AccountStatus;
   approvedBy?: string;
-  approvedAt?: string;
-  createdAt: string;
+  approvedAt?: Timestamp;
+  createdAt: Timestamp;
   createdBy: string;
 }
 
@@ -33,21 +35,21 @@ export interface Case {
   supervisorName: string | null;
   createdBy: string;
   createdByName: string;
-  createdAt: string;
-  updatedAt: string;
-  closedAt?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  closedAt?: Timestamp;
   // Required at creation, manager-only editable
   referralSource: string;
   referralReason: string;
   eligibilityCriteria: string;
-  intakeDate: string;
+  intakeDate: string; // user-entered date string, not a system timestamp
 }
 
 export interface CaseSection {
   id: string;
   caseId: string;
   content: string;
-  updatedAt: string;
+  updatedAt: Timestamp;
   updatedBy: string;
   updatedByName: string;
 }
@@ -56,12 +58,12 @@ export interface CaseNote {
   id: string;
   caseId: string;
   content: string;
-  createdAt: string;
+  createdAt: Timestamp;
   createdBy: string;
   createdByName: string;
   isApproved: boolean;
   approvedBy?: string;
-  approvedAt?: string;
+  approvedAt?: Timestamp;
 }
 
 export interface CommunicationEntry {
@@ -69,10 +71,10 @@ export interface CommunicationEntry {
   caseId: string;
   type: string; // phone call, email, in-person, text, home visit
   summary: string;
-  date: string;
+  date: string; // user-entered date string, not a system timestamp
   loggedBy: string;
   loggedByName: string;
-  createdAt: string;
+  createdAt: Timestamp;
 }
 
 export interface Document {
@@ -83,7 +85,7 @@ export interface Document {
   type: string;
   uploadedBy: string;
   uploadedByName: string;
-  uploadedAt: string;
+  uploadedAt: Timestamp;
 }
 
 export interface AuditLogEntry {
@@ -94,7 +96,7 @@ export interface AuditLogEntry {
   targetType: 'case' | 'user' | 'note' | 'document' | 'system';
   targetId: string;
   details: string;
-  timestamp: string;
+  timestamp: Timestamp;
 }
 
 export interface Task {
@@ -103,8 +105,8 @@ export interface Task {
   caseClientName: string;
   assignedTo: string;
   title: string;
-  dueDate: string;
+  dueDate: string; // user-entered date string, not a system timestamp
   isCompleted: boolean;
   createdBy: string;
-  createdAt: string;
+  createdAt: Timestamp;
 }

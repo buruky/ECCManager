@@ -35,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: COLORS.warning,
   active: COLORS.success,
   onHold: COLORS.textSecondary,
+  closed: COLORS.closed,
 };
 
 export default function CaseDetailScreen() {

@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SUPERVISOR_PROGRAMS, PROGRAM_LABELS } from '@/utils/constants';
+import { formatDate } from '@/utils/date';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getPendingRegistrations,
@@ -160,7 +161,7 @@ export default function PendingApprovalsScreen() {
                     <Text style={styles.pendingBadgeText}>Pending</Text>
                   </View>
                   <Text style={styles.dateText}>
-                    {new Date(item.createdAt).toLocaleDateString()}
+                    {formatDate(item.createdAt)}
                   </Text>
                 </View>
 

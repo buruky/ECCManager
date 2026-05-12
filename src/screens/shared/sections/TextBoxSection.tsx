@@ -5,6 +5,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getCaseSection, saveCaseSection } from '@/services/caseService';
 import { COLORS } from '@/utils/constants';
+import { formatDate } from '@/utils/date';
 
 interface Props {
   caseId: string;
@@ -29,7 +30,7 @@ export default function TextBoxSection({ caseId, sectionName, placeholder }: Pro
       if (section) {
         setContent(section.content);
         setSavedContent(section.content);
-        setLastUpdated(section.updatedAt);
+        setLastUpdated(formatDate(section.updatedAt));
         setLastUpdatedBy(section.updatedByName);
       }
       setLoading(false);
@@ -41,7 +42,7 @@ export default function TextBoxSection({ caseId, sectionName, placeholder }: Pro
     try {
       await saveCaseSection(caseId, sectionName, content, user!.uid, user!.name);
       setSavedContent(content);
-      setLastUpdated(new Date().toISOString());
+      setLastUpdated(formatDate(new Date()));
       setLastUpdatedBy(user!.name);
       setEditing(false);
     } catch {
@@ -68,7 +69,7 @@ export default function TextBoxSection({ caseId, sectionName, placeholder }: Pro
     <ScrollView contentContainerStyle={styles.container}>
       {lastUpdated ? (
         <Text style={styles.meta}>
-          Last updated {new Date(lastUpdated).toLocaleDateString()} by {lastUpdatedBy}
+          Last updated {lastUpdated} by {lastUpdatedBy}
         </Text>
       ) : null}
 

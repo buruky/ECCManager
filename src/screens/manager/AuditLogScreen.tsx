@@ -5,6 +5,7 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AuditLogEntry } from '@/types';
 import { COLORS, COLLECTIONS } from '@/utils/constants';
+import { formatDateTime } from '@/utils/date';
 import ScreenHeader from '@/components/ScreenHeader';
 
 export default function AuditLogScreen() {
@@ -36,7 +37,7 @@ export default function AuditLogScreen() {
           <View style={styles.entry}>
             <View style={styles.row}>
               <Text style={styles.action}>{item.action.replace(/_/g, ' ')}</Text>
-              <Text style={styles.time}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+              <Text style={styles.time}>{formatDateTime(item.timestamp)}</Text>
             </View>
             <Text style={styles.detail}>{item.details}</Text>
             <Text style={styles.user}>By: {item.userName}</Text>

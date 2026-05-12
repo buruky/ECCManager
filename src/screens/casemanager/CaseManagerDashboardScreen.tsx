@@ -16,12 +16,14 @@ const STATUS_COLORS: Record<string, string> = {
   pending: COLORS.warning,
   active: COLORS.success,
   onHold: COLORS.textSecondary,
+  closed: COLORS.closed,
 };
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   active: 'Active',
   onHold: 'On Hold',
+  closed: 'Closed',
 };
 
 const TOTAL_SECTIONS = 7;

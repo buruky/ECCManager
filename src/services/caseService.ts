@@ -10,6 +10,8 @@ import {
   where,
   orderBy,
   limit,
+  serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { ref as storageRef, listAll, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
@@ -28,7 +30,9 @@ export async function getCasesByManager(uid: string): Promise<Case[]> {
     query(collection(db, COLLECTIONS.CASES), where('assignedCaseManagerId', '==', uid))
   );
   const cases = snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
-  return cases.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return cases
+    .filter(c => c.status !== 'closed')
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 // Returns all cases in the supervisor's program. Falls back to cases they own if no program is set.
@@ -76,7 +80,7 @@ export async function createCase(
   actorId: string,
   actorName: string
 ): Promise<Case> {
-  const now = new Date().toISOString();
+  const localNow = Timestamp.fromDate(new Date());
   const newCase: Omit<Case, 'id'> = {
     clientName: data.clientName,
     program: data.program,
@@ -91,10 +95,15 @@ export async function createCase(
     supervisorName: null,
     createdBy: actorId,
     createdByName: actorName,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: localNow,
+    updatedAt: localNow,
   };
-  const ref = await addDoc(collection(db, COLLECTIONS.CASES), newCase);
+  // Write with server-authoritative timestamps; the returned object uses localNow (ms-level difference is irrelevant).
+  const ref = await addDoc(collection(db, COLLECTIONS.CASES), {
+    ...newCase,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
   await writeAuditLog({
     userId: actorId,
     userName: actorName,
@@ -112,7 +121,7 @@ export async function updateCaseInfo(
   actorId: string,
   actorName: string
 ): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.CASES, caseId), { ...data, updatedAt: new Date().toISOString() });
+  await updateDoc(doc(db, COLLECTIONS.CASES, caseId), { ...data, updatedAt: serverTimestamp() });
   await writeAuditLog({
     userId: actorId,
     userName: actorName,
@@ -130,10 +139,9 @@ export async function updateCaseStatus(
   actorId: string,
   actorName: string
 ): Promise<void> {
-  const now = new Date().toISOString();
-  const updates: Partial<Case> = { status, updatedAt: now };
-  if (status === 'onHold') updates.closedAt = now;
-  await updateDoc(doc(db, COLLECTIONS.CASES, caseId), updates);
+  const updateData: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
+  if (status === 'closed') updateData.closedAt = serverTimestamp();
+  await updateDoc(doc(db, COLLECTIONS.CASES, caseId), updateData);
   await writeAuditLog({
     userId: actorId,
     userName: actorName,
@@ -160,7 +168,7 @@ export async function assignCaseManager(
     supervisorId,
     supervisorName,
     status: 'active',
-    updatedAt: new Date().toISOString(),
+    updatedAt: serverTimestamp(),
   });
   await writeAuditLog({
     userId: actorId,
@@ -239,8 +247,7 @@ export async function saveCaseSection(
     where('sectionName', '==', sectionName)
   );
   const snap = await getDocs(q);
-  const now = new Date().toISOString();
-  const data = { caseId, sectionName, content, updatedAt: now, updatedBy: actorId, updatedByName: actorName };
+  const data = { caseId, sectionName, content, updatedAt: serverTimestamp(), updatedBy: actorId, updatedByName: actorName };
   if (snap.empty) {
     await addDoc(collection(db, COLLECTIONS.CASE_SECTIONS), data);
   } else {
@@ -262,16 +269,19 @@ export async function addCaseNote(
   actorId: string,
   actorName: string
 ): Promise<CaseNote> {
-  const now = new Date().toISOString();
+  const localNow = Timestamp.fromDate(new Date());
   const newNote: Omit<CaseNote, 'id'> = {
     caseId,
     content,
-    createdAt: now,
+    createdAt: localNow,
     createdBy: actorId,
     createdByName: actorName,
     isApproved: false,
   };
-  const ref = await addDoc(collection(db, COLLECTIONS.CASE_NOTES), newNote);
+  const ref = await addDoc(collection(db, COLLECTIONS.CASE_NOTES), {
+    ...newNote,
+    createdAt: serverTimestamp(),
+  });
   await writeAuditLog({
     userId: actorId,
     userName: actorName,
@@ -296,14 +306,17 @@ export async function addCommunicationEntry(
   actorId: string,
   actorName: string
 ): Promise<CommunicationEntry> {
-  const now = new Date().toISOString();
+  const localNow = Timestamp.fromDate(new Date());
   const entry: Omit<CommunicationEntry, 'id'> = {
     ...data,
     loggedBy: actorId,
     loggedByName: actorName,
-    createdAt: now,
+    createdAt: localNow,
   };
-  const ref = await addDoc(collection(db, COLLECTIONS.COMMUNICATION_LOG), entry);
+  const ref = await addDoc(collection(db, COLLECTIONS.COMMUNICATION_LOG), {
+    ...entry,
+    createdAt: serverTimestamp(),
+  });
   return { id: ref.id, ...entry };
 }
 
@@ -320,9 +333,12 @@ export async function createTask(
   data: { caseId: string; caseClientName: string; assignedTo: string; title: string; dueDate: string },
   actorId: string
 ): Promise<Task> {
-  const now = new Date().toISOString();
-  const task: Omit<Task, 'id'> = { ...data, isCompleted: false, createdBy: actorId, createdAt: now };
-  const ref = await addDoc(collection(db, COLLECTIONS.TASKS), task);
+  const localNow = Timestamp.fromDate(new Date());
+  const task: Omit<Task, 'id'> = { ...data, isCompleted: false, createdBy: actorId, createdAt: localNow };
+  const ref = await addDoc(collection(db, COLLECTIONS.TASKS), {
+    ...task,
+    createdAt: serverTimestamp(),
+  });
   return { id: ref.id, ...task };
 }
 

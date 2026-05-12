@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Reads the caller's user document once and caches it for the request.
+    function caller() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isManager() {
+      return isAuthenticated() && caller().role == 'manager' && caller().isActive == true;
+    }
+
+    function isSupervisor() {
+      return isAuthenticated() && caller().role == 'supervisor' && caller().isActive == true;
+    }
+
+    function isCaseManager() {
+      return isAuthenticated() && caller().role == 'caseManager' && caller().isActive == true;
+    }
+
+    // ── users ────────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Any active staff can read user docs (needed for name lookups in assignment flows).
+      allow read: if isAuthenticated();
+
+      // Self-registration: caller creates their own doc with pending/inactive status.
+      // Manager-created users: the manager (authenticated on main app) writes the doc.
+      // Unauthenticated path handles self-register (secondary app pattern — no main-app auth yet).
+      allow create: if
+        (request.auth != null && request.auth.uid == uid) ||
+        isManager() ||
+        (request.auth == null &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.isActive == false &&
+          !('role' in request.resource.data));
+
+      // Only managers may update or delete user documents.
+      allow update: if isManager();
+      allow delete: if isManager();
+    }
+
+    // ── cases ─────────────────────────────────────────────────────────────────
+    match /cases/{caseId} {
+      allow read: if
+        isManager() ||
+        (isSupervisor() && resource.data.program == caller().program) ||
+        (isCaseManager() && resource.data.assignedCaseManagerId == request.auth.uid &&
+          resource.data.status != 'closed');
+
+      allow create: if isManager();
+
+      // Managers and supervisors may update (status changes, assignment, edits).
+      allow update: if isManager() || isSupervisor();
+
+      allow delete: if isManager();
+    }
+
+    // ── caseSections ──────────────────────────────────────────────────────────
+    match /caseSections/{sectionId} {
+      allow read: if isAuthenticated();
+      // Managers and case managers may write sections; supervisors are read-only here.
+      allow write: if isManager() || isCaseManager();
+    }
+
+    // ── caseNotes ─────────────────────────────────────────────────────────────
+    match /caseNotes/{noteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Approval (isApproved field) is a manager/supervisor action.
+      allow update: if isManager() || isSupervisor();
+      allow delete: if isManager();
+    }
+
+    // ── communicationLog ──────────────────────────────────────────────────────
+    match /communicationLog/{entryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Entries are immutable once written; only managers may remove them.
+      allow update: if false;
+      allow delete: if isManager();
+    }
+
+    // ── documents ─────────────────────────────────────────────────────────────
+    match /documents/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isManager();
+    }
+
+    // ── auditLog ──────────────────────────────────────────────────────────────
+    match /auditLog/{entryId} {
+      // Managers see all entries; supervisors see only their own.
+      allow read: if
+        isManager() ||
+        (isSupervisor() && resource.data.userId == request.auth.uid);
+
+      // Any authenticated user may write audit entries (done by service functions).
+      allow create: if isAuthenticated();
+
+      // Audit entries must never be modified or deleted.
+      allow update, delete: if false;
+    }
+
+    // ── tasks ─────────────────────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      allow read: if
+        isManager() ||
+        isSupervisor() ||
+        (isCaseManager() && resource.data.assignedTo == request.auth.uid);
+
+      allow create: if isManager() || isSupervisor();
+
+      allow update: if
+        isManager() ||
+        isSupervisor() ||
+        // Case managers may only mark their own tasks complete.
+        (isCaseManager() && resource.data.assignedTo == request.auth.uid);
+
+      allow delete: if isManager() || isSupervisor();
+    }
+
+    // ── notifications ─────────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+  }
+}

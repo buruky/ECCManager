@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCaseNotes, addCaseNote } from '@/services/caseService';
 import { CaseNote } from '@/types';
 import { COLORS } from '@/utils/constants';
+import { formatDate } from '@/utils/date';
 
 export default function CaseNotesSection({ caseId }: { caseId: string }) {
   const { user } = useAuth();
@@ -75,7 +76,7 @@ export default function CaseNotesSection({ caseId }: { caseId: string }) {
             <View style={styles.noteCard}>
               <View style={styles.noteHeader}>
                 <Text style={styles.noteAuthor}>{item.createdByName}</Text>
-                <Text style={styles.noteDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                <Text style={styles.noteDate}>{formatDate(item.createdAt)}</Text>
               </View>
               <Text style={styles.noteContent}>{item.content}</Text>
             </View>

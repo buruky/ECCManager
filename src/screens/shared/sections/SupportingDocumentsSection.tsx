@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator,
   Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { collection, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +11,7 @@ import { db, storage } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Document } from '@/types';
 import { COLORS, COLLECTIONS } from '@/utils/constants';
+import { formatDate } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 
 interface PendingUpload {
@@ -112,7 +113,7 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
           type: item.mimeType,
           uploadedBy: user!.uid,
           uploadedByName: user!.name,
-          uploadedAt: new Date().toISOString(),
+          uploadedAt: serverTimestamp(),
         });
       }
       await loadDocs();
@@ -171,7 +172,7 @@ export default function SupportingDocumentsSection({ caseId }: { caseId: string 
               <View style={styles.docInfo}>
                 <Text style={styles.docName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.docMeta}>
-                  {item.uploadedByName} · {new Date(item.uploadedAt).toLocaleDateString()}
+                  {item.uploadedByName} · {formatDate(item.uploadedAt)}
                 </Text>
               </View>
             </View>

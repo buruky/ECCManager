@@ -40,6 +40,7 @@ export default function ManagerDashboardScreen() {
     { label: 'Active', value: cases.filter(c => c.status === 'active').length, color: COLORS.success },
     { label: 'Pending', value: cases.filter(c => c.status === 'pending').length, color: COLORS.warning },
     { label: 'On Hold', value: cases.filter(c => c.status === 'onHold').length, color: COLORS.textSecondary },
+    { label: 'Closed', value: cases.filter(c => c.status === 'closed').length, color: COLORS.closed },
     { label: 'Staff Members', value: users.filter(u => u.isActive).length, color: COLORS.primaryLight },
     { label: 'Unassigned', value: cases.filter(c => !c.assignedCaseManagerId).length, color: COLORS.error },
   ];

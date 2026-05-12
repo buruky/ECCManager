@@ -13,6 +13,7 @@ export const COLORS = {
   pending: '#d69e2e',
   active: '#38a169',
   onHold: '#718096',
+  closed: '#9b2c2c',
 };
 
 export const FONTS = {
@@ -44,6 +45,7 @@ export const CASE_STATUSES: { label: string; value: string }[] = [
   { label: 'Pending', value: 'pending' },
   { label: 'Active', value: 'active' },
   { label: 'On Hold', value: 'onHold' },
+  { label: 'Closed', value: 'closed' },
 ];
 
 export const COMMUNICATION_TYPES = [

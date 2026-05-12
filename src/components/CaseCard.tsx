@@ -3,17 +3,20 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Case } from '@/types';
 import { COLORS, PROGRAM_LABELS } from '@/utils/constants';
+import { formatDate } from '@/utils/date';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: COLORS.warning,
   active: COLORS.success,
   onHold: COLORS.textSecondary,
+  closed: COLORS.closed,
 };
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   active: 'Active',
   onHold: 'On Hold',
+  closed: 'Closed',
 };
 
 interface Props {
@@ -60,7 +63,7 @@ export default function CaseCard({ item, onPress, showProgram = true }: Props) {
       </View>
 
       <Text style={styles.date}>
-        {item.intakeDate ? `Intake: ${item.intakeDate}` : `Created ${new Date(item.createdAt).toLocaleDateString()}`}
+        {item.intakeDate ? `Intake: ${item.intakeDate}` : `Created ${formatDate(item.createdAt)}`}
       </Text>
     </TouchableOpacity>
   );

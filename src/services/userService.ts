@@ -8,6 +8,9 @@ import {
   deleteDoc,
   query,
   where,
+  writeBatch,
+  serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -61,6 +64,7 @@ export async function createUser(
     authUser = credential.user;
     const uid = authUser.uid;
 
+    const localNow = Timestamp.fromDate(new Date());
     const newUser: Omit<AppUser, 'uid'> = {
       name: data.name,
       email: data.email,
@@ -69,11 +73,11 @@ export async function createUser(
       ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
       ...(data.program ? { program: data.program } : {}),
       isActive: true,
-      createdAt: new Date().toISOString(),
+      createdAt: localNow,
       createdBy,
     };
 
-    await setDoc(doc(db, COLLECTIONS.USERS, uid), newUser);
+    await setDoc(doc(db, COLLECTIONS.USERS, uid), { ...newUser, createdAt: serverTimestamp() });
 
     await writeAuditLog({
       userId: createdBy,
@@ -144,6 +148,9 @@ export async function updateUser(
   actorId: string,
   actorName: string
 ): Promise<void> {
+  const current = await getUserById(targetUid);
+  const nameChanged = current?.name !== changes.name;
+
   await updateDoc(doc(db, COLLECTIONS.USERS, targetUid), {
     name: changes.name,
     phone: changes.phone,
@@ -151,6 +158,11 @@ export async function updateUser(
     supervisorId: changes.supervisorId ?? null,
     program: changes.program ?? null,
   });
+
+  if (nameChanged) {
+    await propagateNameChange(targetUid, changes.name);
+  }
+
   await writeAuditLog({
     userId: actorId,
     userName: actorName,
@@ -159,6 +171,38 @@ export async function updateUser(
     targetId: targetUid,
     details: `Updated profile for ${changes.name} (${changes.role})`,
   });
+}
+
+// Updates every denormalized name field across live documents when a user is renamed.
+// Audit log entries are intentionally excluded — they are immutable historical records.
+async function propagateNameChange(uid: string, newName: string): Promise<void> {
+  const mappings = [
+    { col: COLLECTIONS.CASES,             filterField: 'assignedCaseManagerId', nameField: 'assignedCaseManagerName' },
+    { col: COLLECTIONS.CASES,             filterField: 'supervisorId',           nameField: 'supervisorName' },
+    { col: COLLECTIONS.CASES,             filterField: 'createdBy',              nameField: 'createdByName' },
+    { col: COLLECTIONS.CASE_SECTIONS,     filterField: 'updatedBy',              nameField: 'updatedByName' },
+    { col: COLLECTIONS.CASE_NOTES,        filterField: 'createdBy',              nameField: 'createdByName' },
+    { col: COLLECTIONS.COMMUNICATION_LOG, filterField: 'loggedBy',               nameField: 'loggedByName' },
+    { col: COLLECTIONS.DOCUMENTS,         filterField: 'uploadedBy',             nameField: 'uploadedByName' },
+  ];
+
+  const snaps = await Promise.all(
+    mappings.map(m => getDocs(query(collection(db, m.col), where(m.filterField, '==', uid))))
+  );
+
+  const updates: Array<{ ref: ReturnType<typeof doc>; field: string }> = [];
+  snaps.forEach((snap, i) => {
+    snap.docs.forEach(d => updates.push({ ref: d.ref as ReturnType<typeof doc>, field: mappings[i].nameField }));
+  });
+
+  if (updates.length === 0) return;
+
+  // Commit in chunks to stay within Firestore's 500-operations-per-batch limit.
+  for (let i = 0; i < updates.length; i += 500) {
+    const batch = writeBatch(db);
+    updates.slice(i, i + 500).forEach(u => batch.update(u.ref, { [u.field]: newName }));
+    await batch.commit();
+  }
 }
 
 export async function selfRegister(data: {
@@ -181,7 +225,7 @@ export async function selfRegister(data: {
       phone: data.phone,
       isActive: false,
       status: 'pending' as const,
-      createdAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
       createdBy: 'self',
     };
 
@@ -212,7 +256,7 @@ export async function approveRegistration(
     isActive: true,
     status: 'approved',
     approvedBy: actorId,
-    approvedAt: new Date().toISOString(),
+    approvedAt: serverTimestamp(),
   };
   if (details.supervisorId) updates.supervisorId = details.supervisorId;
   if (details.program) updates.program = details.program;
