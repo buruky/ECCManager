@@ -8,30 +8,120 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { COLORS } from '@/utils/constants';
+import { useIsDesktop } from '@/utils/responsive';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const navigation = useNavigation<any>();
+  const isDesktop = useIsDesktop();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleLogin() {
+    setError('');
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter your email and password.');
+      setError('Please enter your email and password.');
       return;
     }
     setLoading(true);
     try {
       await signIn(email.trim(), password);
     } catch (err: any) {
-      Alert.alert('Login Failed', err.message ?? 'Invalid credentials.');
+      setError(err.message ?? 'Invalid credentials.');
     } finally {
       setLoading(false);
     }
+  }
+
+  const formContent = (
+    <>
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <Text style={[styles.label, isDesktop && styles.labelDark]}>Email</Text>
+      <TextInput
+        style={[styles.input, isDesktop && styles.inputDesktop]}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="staff@example.com"
+        placeholderTextColor={COLORS.textSecondary}
+      />
+
+      <Text style={[styles.label, isDesktop && styles.labelDark]}>Password</Text>
+      <TextInput
+        style={[styles.input, isDesktop && styles.inputDesktop]}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        placeholder="••••••••"
+        placeholderTextColor={COLORS.textSecondary}
+      />
+
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign In</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Register')}
+        style={[styles.footerBtn, isDesktop && styles.footerBtnDesktop]}
+      >
+        <Text style={[styles.footer, isDesktop && styles.footerDesktop]}>
+          Don't have an account?{' '}
+          <Text style={[styles.footerLink, isDesktop && styles.footerLinkDesktop]}>
+            Request one
+          </Text>
+        </Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={desktopStyles.container}>
+        {/* Left brand panel */}
+        <View style={desktopStyles.brandPanel}>
+          <View style={desktopStyles.brandContent}>
+            <Text style={desktopStyles.brandTitle}>ECC Manager</Text>
+            <Text style={desktopStyles.brandSub}>Eritrean Community Connections</Text>
+            <View style={desktopStyles.divider} />
+            <Text style={desktopStyles.brandTagline}>
+              Supporting our community through compassionate, coordinated case management.
+            </Text>
+          </View>
+        </View>
+
+        {/* Right form panel */}
+        <View style={desktopStyles.formPanel}>
+          <View style={desktopStyles.formCard}>
+            <Text style={desktopStyles.formTitle}>Sign In</Text>
+            <Text style={desktopStyles.formSubtitle}>Welcome back</Text>
+            {formContent}
+          </View>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -45,44 +135,8 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="staff@example.com"
-          placeholderTextColor={COLORS.textSecondary}
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="••••••••"
-          placeholderTextColor={COLORS.textSecondary}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
+        {formContent}
       </View>
-
-      <Text style={styles.footer}>
-        Contact your manager if you need access.
-      </Text>
     </KeyboardAvoidingView>
   );
 }
@@ -118,12 +172,30 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.error + '15',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: '500',
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 6,
     marginTop: 12,
+  },
+  labelDark: {
+    color: COLORS.text,
   },
   input: {
     backgroundColor: COLORS.background,
@@ -134,6 +206,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: COLORS.text,
+  },
+  inputDesktop: {
+    backgroundColor: '#f8fafc',
   },
   button: {
     backgroundColor: COLORS.primary,
@@ -150,10 +225,96 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  footerBtn: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  footerBtnDesktop: {
+    marginTop: 20,
+  },
   footer: {
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    marginTop: 32,
     fontSize: 13,
+  },
+  footerDesktop: {
+    color: COLORS.textSecondary,
+  },
+  footerLink: {
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  footerLinkDesktop: {
+    color: COLORS.primary,
+  },
+});
+
+const desktopStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: COLORS.background,
+  },
+  brandPanel: {
+    width: '42%',
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    paddingHorizontal: 56,
+  },
+  brandContent: {
+    maxWidth: 340,
+  },
+  brandTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  brandSub: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 8,
+  },
+  divider: {
+    width: 48,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    marginVertical: 28,
+  },
+  brandTagline: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.75)',
+    lineHeight: 24,
+  },
+  formPanel: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f4f8',
+    paddingHorizontal: 48,
+  },
+  formCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 40,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  formTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  formSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
   },
 });

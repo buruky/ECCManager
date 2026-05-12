@@ -3,6 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/utils/constants';
+import { useIsDesktop, SIDEBAR_WIDTH } from '@/utils/responsive';
+import WebTabBar from '@/components/WebTabBar';
 
 import ManagerDashboardScreen from '@/screens/manager/ManagerDashboardScreen';
 import AllCasesScreen from '@/screens/manager/AllCasesScreen';
@@ -14,6 +16,7 @@ import AuditLogScreen from '@/screens/manager/AuditLogScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
 import CaseAssignmentScreen from '@/screens/supervisor/CaseAssignmentScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
+import PendingApprovalsScreen from '@/screens/shared/PendingApprovalsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -35,13 +38,18 @@ function UsersStack() {
       <Stack.Screen name="UserManagement" component={UserManagementScreen} />
       <Stack.Screen name="CreateUser" component={CreateUserScreen} />
       <Stack.Screen name="EditUser" component={EditUserScreen} />
+      <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} />
     </Stack.Navigator>
   );
 }
 
 export default function ManagerNavigator() {
+  const isDesktop = useIsDesktop();
+
   return (
     <Tab.Navigator
+      tabBar={(props) => <WebTabBar {...props} />}
+      sceneContainerStyle={isDesktop ? { marginLeft: SIDEBAR_WIDTH } : undefined}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,

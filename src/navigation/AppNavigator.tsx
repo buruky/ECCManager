@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginScreen from '@/screens/auth/LoginScreen';
+import RegisterScreen from '@/screens/auth/RegisterScreen';
 import ManagerNavigator from './ManagerNavigator';
 import SupervisorNavigator from './SupervisorNavigator';
 import CaseManagerNavigator from './CaseManagerNavigator';
@@ -26,7 +27,10 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
         ) : user.role === 'manager' ? (
           <Stack.Screen name="Manager" component={ManagerNavigator} />
         ) : user.role === 'supervisor' ? (

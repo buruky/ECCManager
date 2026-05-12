@@ -59,6 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const appUser = await getUserById(cred.user.uid);
     if (!appUser || !appUser.isActive) {
       await firebaseSignOut(auth);
+      if (appUser?.status === 'pending') {
+        throw new Error('Your account is pending approval. You will be able to sign in once a manager approves it.');
+      }
       throw new Error('Account is deactivated. Contact your manager.');
     }
     await AsyncStorage.setItem(SESSION_KEY, Date.now().toString());

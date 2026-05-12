@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshContr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getAllUsers, deactivateUser } from '@/services/userService';
+import { getAllUsers, deactivateUser, getPendingRegistrations } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppUser } from '@/types';
 import { COLORS, PROGRAM_LABELS } from '@/utils/constants';
@@ -16,10 +16,13 @@ export default function UserManagementScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   async function load() {
-    setUsers(await getAllUsers());
+    const [allUsers, pending] = await Promise.all([getAllUsers(), getPendingRegistrations()]);
+    setUsers(allUsers);
+    setPendingCount(pending.length);
   }
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -55,6 +58,15 @@ export default function UserManagementScreen() {
         subtitle={`${users.filter(u => u.isActive).length} active members`}
         rightAction={{ icon: 'person-add-outline', onPress: () => navigation.navigate('CreateUser') }}
       />
+      {pendingCount > 0 && (
+        <TouchableOpacity style={styles.pendingBanner} onPress={() => navigation.navigate('PendingApprovals')}>
+          <Ionicons name="time-outline" size={16} color="#fff" />
+          <Text style={styles.pendingBannerText}>
+            {pendingCount} account request{pendingCount > 1 ? 's' : ''} awaiting approval
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#fff" />
+        </TouchableOpacity>
+      )}
       <FlatList
         data={users}
         keyExtractor={u => u.uid}
@@ -124,4 +136,13 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionBtn: { padding: 8 },
   empty: { textAlign: 'center', color: COLORS.textSecondary, marginTop: 48 },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  pendingBannerText: { flex: 1, color: '#fff', fontWeight: '600', fontSize: 13 },
 });

@@ -1,5 +1,7 @@
 export type UserRole = 'manager' | 'supervisor' | 'caseManager';
 
+export type AccountStatus = 'pending' | 'approved';
+
 export type Program = 'prime' | 'wamass' | 'other';
 
 export type CaseStatus = 'pending' | 'active' | 'onHold';
@@ -13,6 +15,9 @@ export interface AppUser {
   supervisorId?: string; // set for caseManagers
   program?: 'prime' | 'wamass'; // set for supervisors
   isActive: boolean;
+  status?: AccountStatus;
+  approvedBy?: string;
+  approvedAt?: string;
   createdAt: string;
   createdBy: string;
 }

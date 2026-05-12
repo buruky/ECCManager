@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '@/utils/constants';
+import { useIsDesktop } from '@/utils/responsive';
 
 interface Props {
   title: string;
@@ -15,9 +16,10 @@ interface Props {
 export default function ScreenHeader({ title, subtitle, showBack, rightAction }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const isDesktop = useIsDesktop();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.container, { paddingTop: isDesktop ? 20 : insets.top + 12 }]}>
       <View style={styles.row}>
         {showBack && (
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>

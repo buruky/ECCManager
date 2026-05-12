@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
 } from 'firebase/firestore';
@@ -23,7 +24,9 @@ export async function getUserById(uid: string): Promise<AppUser | null> {
 
 export async function getAllUsers(): Promise<AppUser[]> {
   const snap = await getDocs(collection(db, COLLECTIONS.USERS));
-  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
+  return snap.docs
+    .map(d => ({ uid: d.id, ...d.data() } as AppUser))
+    .filter(u => u.status !== 'pending');
 }
 
 export async function getUsersByRole(role: UserRole): Promise<AppUser[]> {
@@ -155,5 +158,89 @@ export async function updateUser(
     targetType: 'user',
     targetId: targetUid,
     details: `Updated profile for ${changes.name} (${changes.role})`,
+  });
+}
+
+export async function selfRegister(data: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<void> {
+  const secondaryApp = initializeApp(firebaseConfig, `register-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
+    const uid = credential.user.uid;
+
+    // role is intentionally omitted — manager assigns it during approval
+    const newUser = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      isActive: false,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+      createdBy: 'self',
+    };
+
+    await setDoc(doc(db, COLLECTIONS.USERS, uid), newUser);
+  } finally {
+    await deleteApp(secondaryApp);
+  }
+}
+
+export async function getPendingRegistrations(): Promise<AppUser[]> {
+  const q = query(
+    collection(db, COLLECTIONS.USERS),
+    where('status', '==', 'pending')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
+}
+
+export async function approveRegistration(
+  targetUid: string,
+  targetName: string,
+  details: { role: UserRole; supervisorId?: string; program?: 'prime' | 'wamass' },
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  const updates: Record<string, any> = {
+    role: details.role,
+    isActive: true,
+    status: 'approved',
+    approvedBy: actorId,
+    approvedAt: new Date().toISOString(),
+  };
+  if (details.supervisorId) updates.supervisorId = details.supervisorId;
+  if (details.program) updates.program = details.program;
+
+  await updateDoc(doc(db, COLLECTIONS.USERS, targetUid), updates);
+  await writeAuditLog({
+    userId: actorId,
+    userName: actorName,
+    action: 'APPROVE_REGISTRATION',
+    targetType: 'user',
+    targetId: targetUid,
+    details: `Approved account registration for ${targetName}`,
+  });
+}
+
+export async function rejectRegistration(
+  targetUid: string,
+  targetName: string,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await deleteDoc(doc(db, COLLECTIONS.USERS, targetUid));
+  await writeAuditLog({
+    userId: actorId,
+    userName: actorName,
+    action: 'REJECT_REGISTRATION',
+    targetType: 'user',
+    targetId: targetUid,
+    details: `Rejected and deleted account registration for ${targetName}`,
   });
 }

@@ -3,6 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/utils/constants';
+import { useIsDesktop, SIDEBAR_WIDTH } from '@/utils/responsive';
+import WebTabBar from '@/components/WebTabBar';
 
 import CaseManagerDashboardScreen from '@/screens/casemanager/CaseManagerDashboardScreen';
 import MyCasesScreen from '@/screens/casemanager/MyCasesScreen';
@@ -31,8 +33,12 @@ function CasesStack() {
 }
 
 export default function CaseManagerNavigator() {
+  const isDesktop = useIsDesktop();
+
   return (
     <Tab.Navigator
+      tabBar={(props) => <WebTabBar {...props} />}
+      sceneContainerStyle={isDesktop ? { marginLeft: SIDEBAR_WIDTH } : undefined}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
