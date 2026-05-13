@@ -12,7 +12,6 @@ import SupervisorCaseDetailScreen from '@/screens/supervisor/SupervisorCaseDetai
 import CaseAssignmentScreen from '@/screens/supervisor/CaseAssignmentScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
-import PendingApprovalsScreen from '@/screens/shared/PendingApprovalsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -44,7 +43,6 @@ export default function SupervisorNavigator() {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Dashboard: 'home-outline',
             Cases: 'folder-outline',
-            Approvals: 'person-add-outline',
             ReportBug: 'bug-outline',
           };
           return <Ionicons name={icons[route.name] ?? 'ellipse-outline'} size={size} color={color} />;
@@ -53,7 +51,6 @@ export default function SupervisorNavigator() {
     >
       <Tab.Screen name="Dashboard" component={SupervisorDashboardScreen} />
       <Tab.Screen name="Cases" component={CasesStack} />
-      <Tab.Screen name="Approvals" component={PendingApprovalsScreen} options={{ tabBarLabel: 'Approvals' }} />
       <Tab.Screen name="ReportBug" component={ReportBugScreen} options={{ tabBarLabel: 'Report Bug' }} />
     </Tab.Navigator>
   );

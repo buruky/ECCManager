@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
-import { createUser, getUsersByRole } from '@/services/userService';
+import { createUser, getUsersByRole, isValidUsername } from '@/services/userService';
 import { AppUser, UserRole } from '@/types';
 import { COLORS, SUPERVISOR_PROGRAMS } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -21,6 +21,7 @@ export default function CreateUserScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +38,10 @@ export default function CreateUserScreen() {
   async function handleCreate() {
     if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       Alert.alert('Error', 'All fields are required.');
+      return;
+    }
+    if (username.trim() && !isValidUsername(username.trim().toLowerCase())) {
+      Alert.alert('Error', 'Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
       return;
     }
     if (role === 'caseManager' && !supervisorId) {
@@ -58,6 +63,7 @@ export default function CreateUserScreen() {
           role,
           supervisorId: supervisorId || undefined,
           program: role === 'supervisor' ? (supervisorProgram as 'prime' | 'wamass') : undefined,
+          ...(username.trim() ? { username: username.trim().toLowerCase() } : {}),
         },
         user!.uid,
         user!.name
@@ -78,6 +84,7 @@ export default function CreateUserScreen() {
         <ScrollView contentContainerStyle={styles.form}>
           {[
             { label: 'Full Name *', value: name, setter: setName, placeholder: 'Jane Doe', capitalize: 'words' as const },
+            { label: 'Username (optional)', value: username, setter: setUsername, placeholder: 'e.g. jane_smith', hint: 'Used to sign in instead of email' },
             { label: 'Email *', value: email, setter: setEmail, placeholder: 'jane@example.com', keyboard: 'email-address' as const },
             { label: 'Phone *', value: phone, setter: setPhone, placeholder: '+1 (555) 000-0000', keyboard: 'phone-pad' as const },
             { label: 'Temporary Password *', value: password, setter: setPassword, placeholder: 'Min 8 characters', secure: true },
@@ -94,6 +101,7 @@ export default function CreateUserScreen() {
                 autoCapitalize={f.capitalize ?? 'none'}
                 secureTextEntry={f.secure}
               />
+              {f.hint ? <Text style={styles.fieldHint}>{f.hint}</Text> : null}
             </View>
           ))}
 
@@ -201,6 +209,7 @@ const styles = StyleSheet.create({
   supervisorBtnText: { fontSize: 14, color: COLORS.text },
   supervisorBtnTextActive: { color: COLORS.primary, fontWeight: '600' },
   hint: { fontSize: 13, color: COLORS.warning, marginTop: 4 },
+  fieldHint: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4 },
   button: {
     backgroundColor: COLORS.primary,
     borderRadius: 10,

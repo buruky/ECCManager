@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
-import { getUserById } from '@/services/userService';
+import { getUserById, getUserByUsername } from '@/services/userService';
 import { AppUser } from '@/types';
 import { SESSION_DURATION_MS } from '@/utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,7 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsub;
   }, []);
 
-  async function signIn(email: string, password: string) {
+  async function signIn(emailOrUsername: string, password: string) {
+    let email = emailOrUsername.trim();
+    if (!email.includes('@')) {
+      const match = await getUserByUsername(email.toLowerCase());
+      if (!match) throw new Error('No account found with that username.');
+      email = match.email;
+    }
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const appUser = await getUserById(cred.user.uid);
     if (!appUser || !appUser.isActive) {

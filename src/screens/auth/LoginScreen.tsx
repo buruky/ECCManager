@@ -19,20 +19,20 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const navigation = useNavigation<any>();
   const isDesktop = useIsDesktop();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleLogin() {
     setError('');
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password.');
+    if (!identifier.trim() || !password.trim()) {
+      setError('Please enter your username or email and password.');
       return;
     }
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(identifier.trim(), password);
     } catch (err: any) {
       setError(err.message ?? 'Invalid credentials.');
     } finally {
@@ -49,15 +49,14 @@ export default function LoginScreen() {
         </View>
       ) : null}
 
-      <Text style={[styles.label, isDesktop && styles.labelDark]}>Email</Text>
+      <Text style={[styles.label, isDesktop && styles.labelDark]}>Username or Email</Text>
       <TextInput
         style={[styles.input, isDesktop && styles.inputDesktop]}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+        value={identifier}
+        onChangeText={setIdentifier}
         autoCapitalize="none"
         autoCorrect={false}
-        placeholder="staff@example.com"
+        placeholder="username or email"
         placeholderTextColor={COLORS.textSecondary}
       />
 

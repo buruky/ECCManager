@@ -12,6 +12,7 @@ export interface AppUser {
   uid: string;
   name: string;
   email: string;
+  username?: string;
   phone: string;
   role: UserRole;
   supervisorId?: string; // set for caseManagers

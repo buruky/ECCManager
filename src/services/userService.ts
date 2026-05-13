@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   writeBatch,
@@ -42,6 +43,26 @@ export async function getUsersByRole(role: UserRole): Promise<AppUser[]> {
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
 }
 
+export function isValidUsername(username: string): boolean {
+  return /^[a-z0-9_-]{3,30}$/.test(username);
+}
+
+export async function getUserByUsername(username: string): Promise<AppUser | null> {
+  const q = query(collection(db, COLLECTIONS.USERS), where('username', '==', username));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { uid: d.id, ...d.data() } as AppUser;
+}
+
+async function checkUsernameAvailable(username: string, excludeUid?: string): Promise<boolean> {
+  const q = query(collection(db, COLLECTIONS.USERS), where('username', '==', username));
+  const snap = await getDocs(q);
+  if (snap.empty) return true;
+  if (excludeUid && snap.docs.length === 1 && snap.docs[0].id === excludeUid) return true;
+  return false;
+}
+
 export async function createUser(
   data: {
     name: string;
@@ -51,10 +72,22 @@ export async function createUser(
     supervisorId?: string;
     program?: 'prime' | 'wamass';
     password: string;
+    username?: string;
   },
   createdBy: string,
   createdByName: string
 ): Promise<AppUser> {
+  if (data.username) {
+    const uname = data.username.trim().toLowerCase();
+    if (!isValidUsername(uname)) {
+      throw new Error('Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
+    }
+    if (!(await checkUsernameAvailable(uname))) {
+      throw new Error('That username is already taken.');
+    }
+    data = { ...data, username: uname };
+  }
+
   const secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
   const secondaryAuth = getAuth(secondaryApp);
   let authUser: { uid: string; delete: () => Promise<void> } | null = null;
@@ -70,6 +103,7 @@ export async function createUser(
       email: data.email,
       phone: data.phone,
       role: data.role,
+      ...(data.username ? { username: data.username } : {}),
       ...(data.supervisorId ? { supervisorId: data.supervisorId } : {}),
       ...(data.program ? { program: data.program } : {}),
       isActive: true,
@@ -144,6 +178,7 @@ export async function updateUser(
     role: UserRole;
     supervisorId?: string;
     program?: 'prime' | 'wamass';
+    username?: string; // undefined = no change, '' = clear, value = set
   },
   actorId: string,
   actorName: string
@@ -151,13 +186,30 @@ export async function updateUser(
   const current = await getUserById(targetUid);
   const nameChanged = current?.name !== changes.name;
 
-  await updateDoc(doc(db, COLLECTIONS.USERS, targetUid), {
+  const payload: Record<string, any> = {
     name: changes.name,
     phone: changes.phone,
     role: changes.role,
     supervisorId: changes.supervisorId ?? null,
     program: changes.program ?? null,
-  });
+  };
+
+  if (changes.username !== undefined) {
+    const trimmed = changes.username.trim().toLowerCase();
+    if (trimmed) {
+      if (!isValidUsername(trimmed)) {
+        throw new Error('Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
+      }
+      if (!(await checkUsernameAvailable(trimmed, targetUid))) {
+        throw new Error('That username is already taken.');
+      }
+      payload.username = trimmed;
+    } else {
+      payload.username = deleteField();
+    }
+  }
+
+  await updateDoc(doc(db, COLLECTIONS.USERS, targetUid), payload);
 
   if (nameChanged) {
     await propagateNameChange(targetUid, changes.name);
@@ -210,7 +262,19 @@ export async function selfRegister(data: {
   email: string;
   phone: string;
   password: string;
+  username?: string;
 }): Promise<void> {
+  if (data.username) {
+    const uname = data.username.trim().toLowerCase();
+    if (!isValidUsername(uname)) {
+      throw new Error('Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
+    }
+    if (!(await checkUsernameAvailable(uname))) {
+      throw new Error('That username is already taken.');
+    }
+    data = { ...data, username: uname };
+  }
+
   const secondaryApp = initializeApp(firebaseConfig, `register-${Date.now()}`);
   const secondaryAuth = getAuth(secondaryApp);
 
@@ -223,6 +287,7 @@ export async function selfRegister(data: {
       name: data.name,
       email: data.email,
       phone: data.phone,
+      ...(data.username ? { username: data.username } : {}),
       isActive: false,
       status: 'pending' as const,
       createdAt: serverTimestamp(),

@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateUser, getUsersByRole } from '@/services/userService';
+import { updateUser, getUsersByRole, isValidUsername } from '@/services/userService';
 import { AppUser, UserRole } from '@/types';
 import { COLORS, SUPERVISOR_PROGRAMS } from '@/utils/constants';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -24,6 +24,7 @@ export default function EditUserScreen() {
   const target: AppUser = route.params.user;
 
   const [name, setName] = useState(target.name);
+  const [username, setUsername] = useState(target.username ?? '');
   const [phone, setPhone] = useState(target.phone);
   const [role, setRole] = useState<UserRole>(target.role);
   const [supervisorId, setSupervisorId] = useState(target.supervisorId ?? '');
@@ -40,6 +41,10 @@ export default function EditUserScreen() {
   async function handleSave() {
     if (!name.trim() || !phone.trim()) {
       Alert.alert('Error', 'Name and phone are required.');
+      return;
+    }
+    if (username.trim() && !isValidUsername(username.trim().toLowerCase())) {
+      Alert.alert('Error', 'Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
       return;
     }
     if (role === 'caseManager' && !supervisorId) {
@@ -60,6 +65,7 @@ export default function EditUserScreen() {
           role,
           supervisorId: role === 'caseManager' ? supervisorId : undefined,
           program: role === 'supervisor' ? (supervisorProgram as 'prime' | 'wamass') : undefined,
+          username: username.trim().toLowerCase(),
         },
         actor!.uid,
         actor!.name
@@ -90,6 +96,22 @@ export default function EditUserScreen() {
             placeholderTextColor={COLORS.textSecondary}
             autoCapitalize="words"
           />
+
+          <Text style={styles.label}>
+            Username <Text style={styles.optional}>(optional)</Text>
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="e.g. jane_smith"
+            placeholderTextColor={COLORS.textSecondary}
+          />
+          <Text style={styles.fieldHint}>
+            {username.trim() ? 'User can sign in with this username' : 'Leave blank to remove username'}
+          </Text>
 
           <Text style={styles.label}>Phone *</Text>
           <TextInput
@@ -224,6 +246,8 @@ const styles = StyleSheet.create({
   supervisorBtnTextActive: { color: COLORS.primary, fontWeight: '600' },
   supervisorProgramTag: { fontSize: 11, fontWeight: '700', color: COLORS.accent },
   hint: { fontSize: 13, color: COLORS.warning, marginTop: 4 },
+  optional: { fontWeight: '400' as const, color: COLORS.textSecondary },
+  fieldHint: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4 },
   button: {
     backgroundColor: COLORS.primary,
     borderRadius: 10,

@@ -13,13 +13,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/utils/constants';
-import { selfRegister } from '@/services/userService';
+import { selfRegister, isValidUsername } from '@/services/userService';
 import { useIsDesktop } from '@/utils/responsive';
 
 export default function RegisterScreen() {
   const navigation = useNavigation<any>();
   const isDesktop = useIsDesktop();
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +33,10 @@ export default function RegisterScreen() {
     setError('');
     if (!name.trim() || !email.trim() || !phone.trim() || !password || !confirmPassword) {
       setError('Please fill in all fields.');
+      return;
+    }
+    if (username.trim() && !isValidUsername(username.trim().toLowerCase())) {
+      setError('Username may only contain lowercase letters, numbers, underscores, and hyphens (3–30 characters).');
       return;
     }
     if (password !== confirmPassword) {
@@ -50,6 +55,7 @@ export default function RegisterScreen() {
         email: email.trim(),
         phone: phone.trim(),
         password,
+        ...(username.trim() ? { username: username.trim().toLowerCase() } : {}),
       });
       setSubmitted(true);
     } catch (err: any) {
@@ -117,6 +123,18 @@ export default function RegisterScreen() {
             placeholder="Jane Smith"
             placeholderTextColor={COLORS.textSecondary}
           />
+
+          <Text style={styles.label}>Username <Text style={styles.optional}>(optional)</Text></Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="e.g. jane_smith"
+            placeholderTextColor={COLORS.textSecondary}
+          />
+          <Text style={styles.hint}>Used to sign in instead of your email</Text>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -223,6 +241,15 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 6,
     marginTop: 14,
+  },
+  optional: {
+    fontWeight: '400',
+    color: COLORS.textSecondary,
+  },
+  hint: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   input: {
     backgroundColor: COLORS.background,
