@@ -43,6 +43,19 @@ export async function getUsersByRole(role: UserRole): Promise<AppUser[]> {
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
 }
 
+export async function getCaseManagersBySupervisor(supervisorId: string): Promise<AppUser[]> {
+  const q = query(
+    collection(db, COLLECTIONS.USERS),
+    where('role', '==', 'caseManager'),
+    where('supervisorId', '==', supervisorId),
+    where('isActive', '==', true)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ uid: d.id, ...d.data() } as AppUser))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function isValidUsername(username: string): boolean {
   return /^[a-z0-9_-]{3,30}$/.test(username);
 }

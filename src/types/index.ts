@@ -16,7 +16,7 @@ export interface AppUser {
   phone: string;
   role: UserRole;
   supervisorId?: string; // set for caseManagers
-  program?: 'prime' | 'wamass'; // set for supervisors
+  program?: 'prime' | 'wamass'; // set for supervisors and caseManagers
   isActive: boolean;
   status?: AccountStatus;
   approvedBy?: string;

@@ -25,13 +25,14 @@ export async function getAllCases(): Promise<Case[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
 }
 
-export async function getCasesByManager(uid: string): Promise<Case[]> {
+export async function getCasesByManager(uid: string, program?: 'prime' | 'wamass'): Promise<Case[]> {
   const snap = await getDocs(
     query(collection(db, COLLECTIONS.CASES), where('assignedCaseManagerId', '==', uid))
   );
   const cases = snap.docs.map(d => ({ id: d.id, ...d.data() } as Case));
   return cases
     .filter(c => c.status !== 'closed')
+    .filter(c => !program || c.program === program)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 

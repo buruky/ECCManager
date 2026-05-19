@@ -10,6 +10,7 @@ import SupervisorDashboardScreen from '@/screens/supervisor/SupervisorDashboardS
 import SupervisorCasesScreen from '@/screens/supervisor/SupervisorCasesScreen';
 import SupervisorCaseDetailScreen from '@/screens/supervisor/SupervisorCaseDetailScreen';
 import CaseAssignmentScreen from '@/screens/supervisor/CaseAssignmentScreen';
+import MyTeamScreen from '@/screens/supervisor/MyTeamScreen';
 import CaseDetailScreen from '@/screens/shared/CaseDetailScreen';
 import ReportBugScreen from '@/screens/shared/ReportBugScreen';
 
@@ -23,6 +24,15 @@ function CasesStack() {
       <Stack.Screen name="SupervisorCaseDetail" component={SupervisorCaseDetailScreen} />
       <Stack.Screen name="CaseAssignment" component={CaseAssignmentScreen} />
       <Stack.Screen name="CaseDetail" component={CaseDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function TeamStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MyTeam" component={MyTeamScreen} />
+      <Stack.Screen name="TeamCaseDetail" component={CaseDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -43,6 +53,7 @@ export default function SupervisorNavigator() {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Dashboard: 'home-outline',
             Cases: 'folder-outline',
+            Team: 'people-outline',
             ReportBug: 'bug-outline',
           };
           return <Ionicons name={icons[route.name] ?? 'ellipse-outline'} size={size} color={color} />;
@@ -51,6 +62,7 @@ export default function SupervisorNavigator() {
     >
       <Tab.Screen name="Dashboard" component={SupervisorDashboardScreen} />
       <Tab.Screen name="Cases" component={CasesStack} />
+      <Tab.Screen name="Team" component={TeamStack} options={{ tabBarLabel: 'My Team' }} />
       <Tab.Screen name="ReportBug" component={ReportBugScreen} options={{ tabBarLabel: 'Report Bug' }} />
     </Tab.Navigator>
   );

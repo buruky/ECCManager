@@ -19,7 +19,7 @@ export default function CommunicationLogSection({ caseId }: { caseId: string }) 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
 
-  const canAdd = user?.role !== 'manager';
+  const canAdd = !!user;
 
   useEffect(() => {
     getCommunicationLog(caseId).then(e => { setEntries(e); setLoading(false); });

@@ -20,7 +20,7 @@ export default function MyCasesScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   async function load() {
-    if (user) setCases(await getCasesByManager(user.uid));
+    if (user) setCases(await getCasesByManager(user.uid, user.program));
   }
 
   useEffect(() => { load(); }, [casesVersion]);

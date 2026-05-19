@@ -82,7 +82,7 @@ export default function CaseAssignmentScreen() {
       )}
       <Text style={styles.sectionTitle}>Select a Case Manager</Text>
       <FlatList
-        data={caseManagers}
+        data={caseData?.program ? caseManagers.filter(cm => cm.program === caseData.program) : caseManagers}
         keyExtractor={cm => cm.uid}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
@@ -92,6 +92,9 @@ export default function CaseAssignmentScreen() {
           >
             <Text style={[styles.cmName, selected === item.uid && styles.cmNameSelected]}>{item.name}</Text>
             <Text style={styles.cmEmail}>{item.email}</Text>
+            {item.program && (
+              <Text style={styles.cmProgram}>{item.program === 'prime' ? 'Prime' : 'WA-MASS'}</Text>
+            )}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
@@ -136,6 +139,7 @@ const styles = StyleSheet.create({
   cmName: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   cmNameSelected: { color: COLORS.primary },
   cmEmail: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  cmProgram: { fontSize: 11, fontWeight: '700', color: COLORS.accent, marginTop: 2 },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.surface },
   button: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 15, alignItems: 'center' },
   buttonDisabled: { opacity: 0.6 },

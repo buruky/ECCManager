@@ -23,7 +23,7 @@ export default function TextBoxSection({ caseId, sectionName, placeholder }: Pro
   const [lastUpdated, setLastUpdated] = useState('');
   const [lastUpdatedBy, setLastUpdatedBy] = useState('');
 
-  const canEdit = user?.role === 'manager' || user?.role === 'caseManager';
+  const canEdit = !!user;
 
   useEffect(() => {
     getCaseSection(caseId, sectionName).then(section => {

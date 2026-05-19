@@ -9,7 +9,7 @@ import { COLORS } from '@/utils/constants';
 
 export default function CaseInfoSection({ caseId }: { caseId: string }) {
   const { user } = useAuth();
-  const isManager = user?.role === 'manager';
+  const canEdit = !!user;
 
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [editing, setEditing] = useState(false);
@@ -81,12 +81,6 @@ export default function CaseInfoSection({ caseId }: { caseId: string }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {!isManager && (
-        <View style={styles.lockedBanner}>
-          <Text style={styles.lockedText}>These fields are set by the manager and cannot be edited.</Text>
-        </View>
-      )}
-
       {fields.map(field => (
         <View key={field.label} style={styles.field}>
           <Text style={styles.fieldLabel}>{field.label}</Text>
@@ -105,7 +99,7 @@ export default function CaseInfoSection({ caseId }: { caseId: string }) {
         </View>
       ))}
 
-      {isManager && (
+      {canEdit && (
         editing ? (
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>

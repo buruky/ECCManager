@@ -51,12 +51,12 @@ service cloud.firestore {
         isManager() ||
         (isSupervisor() && resource.data.program == caller().program) ||
         (isCaseManager() && resource.data.assignedCaseManagerId == request.auth.uid &&
-          resource.data.status != 'closed');
+          resource.data.status != 'closed' && resource.data.program == caller().program);
 
       allow create: if isManager();
 
-      // Managers and supervisors may update (status changes, assignment, edits).
-      allow update: if isManager() || isSupervisor();
+      // All staff may update cases (status/assignment changes, edits).
+      allow update: if isManager() || isSupervisor() || isCaseManager();
 
       allow delete: if isManager();
     }
@@ -64,8 +64,8 @@ service cloud.firestore {
     // ── caseSections ──────────────────────────────────────────────────────────
     match /caseSections/{sectionId} {
       allow read: if isAuthenticated();
-      // Managers and case managers may write sections; supervisors are read-only here.
-      allow write: if isManager() || isCaseManager();
+      // All staff may write sections.
+      allow write: if isManager() || isSupervisor() || isCaseManager();
     }
 
     // ── caseNotes ─────────────────────────────────────────────────────────────

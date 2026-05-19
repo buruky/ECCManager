@@ -64,7 +64,11 @@ export default function EditUserScreen() {
           phone: phone.trim(),
           role,
           supervisorId: role === 'caseManager' ? supervisorId : undefined,
-          program: role === 'supervisor' ? (supervisorProgram as 'prime' | 'wamass') : undefined,
+          program: role === 'supervisor'
+            ? (supervisorProgram as 'prime' | 'wamass')
+            : role === 'caseManager'
+            ? supervisors.find(s => s.uid === supervisorId)?.program
+            : undefined,
           username: username.trim().toLowerCase(),
         },
         actor!.uid,

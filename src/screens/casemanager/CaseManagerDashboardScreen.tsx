@@ -43,7 +43,7 @@ export default function CaseManagerDashboardScreen() {
 
   async function load() {
     if (!user) return;
-    const [c, t] = await Promise.all([getCasesByManager(user.uid), getTasksForUser(user.uid)]);
+    const [c, t] = await Promise.all([getCasesByManager(user.uid, user.program), getTasksForUser(user.uid)]);
     setCases(c);
     setTasks(t);
 

@@ -58,6 +58,7 @@ export default function LoginScreen() {
         autoCorrect={false}
         placeholder="username or email"
         placeholderTextColor={COLORS.textSecondary}
+        returnKeyType="next"
       />
 
       <Text style={[styles.label, isDesktop && styles.labelDark]}>Password</Text>
@@ -68,6 +69,8 @@ export default function LoginScreen() {
         secureTextEntry
         placeholder="••••••••"
         placeholderTextColor={COLORS.textSecondary}
+        returnKeyType="go"
+        onSubmitEditing={handleLogin}
       />
 
       <TouchableOpacity

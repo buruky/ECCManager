@@ -62,7 +62,11 @@ export default function CreateUserScreen() {
           password,
           role,
           supervisorId: supervisorId || undefined,
-          program: role === 'supervisor' ? (supervisorProgram as 'prime' | 'wamass') : undefined,
+          program: role === 'supervisor'
+            ? (supervisorProgram as 'prime' | 'wamass')
+            : role === 'caseManager'
+            ? supervisors.find(s => s.uid === supervisorId)?.program
+            : undefined,
           ...(username.trim() ? { username: username.trim().toLowerCase() } : {}),
         },
         user!.uid,
@@ -151,6 +155,11 @@ export default function CreateUserScreen() {
                   <Text style={[styles.supervisorBtnText, supervisorId === s.uid && styles.supervisorBtnTextActive]}>
                     {s.name}
                   </Text>
+                  {s.program && (
+                    <Text style={styles.supervisorProgramTag}>
+                      {s.program === 'prime' ? 'Prime' : 'WA-MASS'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               ))}
               {supervisors.length === 0 && (
@@ -208,6 +217,7 @@ const styles = StyleSheet.create({
   supervisorBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '11' },
   supervisorBtnText: { fontSize: 14, color: COLORS.text },
   supervisorBtnTextActive: { color: COLORS.primary, fontWeight: '600' },
+  supervisorProgramTag: { fontSize: 11, fontWeight: '700', color: COLORS.accent },
   hint: { fontSize: 13, color: COLORS.warning, marginTop: 4 },
   fieldHint: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4 },
   button: {

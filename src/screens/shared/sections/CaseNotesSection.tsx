@@ -16,7 +16,7 @@ export default function CaseNotesSection({ caseId }: { caseId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const canAddNote = user?.role === 'caseManager';
+  const canAddNote = !!user;
 
   async function load() {
     setLoading(true);
