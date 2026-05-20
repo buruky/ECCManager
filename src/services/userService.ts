@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { db, firebaseConfig } from '@/config/firebase';
 import { AppUser, UserRole } from '@/types';
@@ -308,6 +308,7 @@ export async function selfRegister(data: {
     };
 
     await setDoc(doc(db, COLLECTIONS.USERS, uid), newUser);
+    await sendEmailVerification(credential.user);
   } finally {
     await deleteApp(secondaryApp);
   }

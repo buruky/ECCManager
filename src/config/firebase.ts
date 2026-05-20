@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { initializeAppCheck, CustomProvider } from 'firebase/app-check';
 
 export const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -13,6 +14,24 @@ export const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+// App Check blocks requests from unauthorized clients.
+// Dev: generate a debug token in Firebase Console → App Check → Manage debug tokens,
+//      then add EXPO_PUBLIC_FIREBASE_APP_CHECK_DEBUG_TOKEN to your .env file.
+// Prod: replace CustomProvider with @react-native-firebase/app-check (Play Integrity /
+//       App Attest) before enabling enforcement in the Firebase Console.
+const appCheckDebugToken = process.env.EXPO_PUBLIC_FIREBASE_APP_CHECK_DEBUG_TOKEN;
+if (appCheckDebugToken) {
+  initializeAppCheck(app, {
+    provider: new CustomProvider({
+      getToken: () => Promise.resolve({
+        token: appCheckDebugToken,
+        expireTimeMillis: Date.now() + 3_600_000,
+      }),
+    }),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);

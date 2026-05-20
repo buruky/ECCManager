@@ -65,6 +65,12 @@ export default function WebTabBar(props: BottomTabBarProps) {
             <Text style={styles.userName} numberOfLines={1}>{user?.name}</Text>
             <Text style={styles.userRole}>{user?.role ? ROLE_LABELS[user.role] : ''}</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => navigation.getParent()?.navigate('MfaEnrollment')}
+            style={styles.signOutBtn}
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
             <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.5)" />
           </TouchableOpacity>

@@ -16,11 +16,12 @@ import { COLORS } from '@/utils/constants';
 import { useIsDesktop } from '@/utils/responsive';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, pendingMfa, completeMfaSignIn, cancelMfa } = useAuth();
   const navigation = useNavigation<any>();
   const isDesktop = useIsDesktop();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,6 +40,77 @@ export default function LoginScreen() {
       setLoading(false);
     }
   }
+
+  async function handleMfaVerify() {
+    setError('');
+    if (totpCode.length !== 6) {
+      setError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await completeMfaSignIn(totpCode);
+    } catch (err: any) {
+      setError(
+        err.code === 'auth/invalid-verification-code'
+          ? 'Incorrect code. Check your authenticator app and try again.'
+          : err.message ?? 'Verification failed.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleCancelMfa() {
+    setTotpCode('');
+    setError('');
+    cancelMfa();
+  }
+
+  const mfaFormContent = (
+    <>
+      <View style={styles.mfaHeader}>
+        <Ionicons name="shield-checkmark-outline" size={36} color={isDesktop ? COLORS.primary : '#fff'} />
+        <Text style={[styles.mfaTitle, isDesktop && styles.mfaTitleDesktop]}>Two-Factor Authentication</Text>
+        <Text style={[styles.mfaSubtitle, isDesktop && styles.mfaSubtitleDesktop]}>
+          Enter the 6-digit code from your authenticator app.
+        </Text>
+      </View>
+
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <Text style={[styles.label, isDesktop && styles.labelDark]}>Verification Code</Text>
+      <TextInput
+        style={[styles.input, styles.codeInput, isDesktop && styles.inputDesktop]}
+        value={totpCode}
+        onChangeText={(t) => { setTotpCode(t.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+        keyboardType="number-pad"
+        maxLength={6}
+        placeholder="000000"
+        placeholderTextColor={COLORS.textSecondary}
+        returnKeyType="go"
+        onSubmitEditing={handleMfaVerify}
+        autoFocus
+      />
+
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleMfaVerify}
+        disabled={loading}
+      >
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={handleCancelMfa} style={[styles.footerBtn, isDesktop && styles.footerBtnDesktop]}>
+        <Text style={[styles.footer, isDesktop && styles.footerDesktop]}>← Back to sign in</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   const formContent = (
     <>
@@ -99,6 +171,8 @@ export default function LoginScreen() {
     </>
   );
 
+  const activeForm = pendingMfa ? mfaFormContent : formContent;
+
   if (isDesktop) {
     return (
       <View style={desktopStyles.container}>
@@ -117,9 +191,9 @@ export default function LoginScreen() {
         {/* Right form panel */}
         <View style={desktopStyles.formPanel}>
           <View style={desktopStyles.formCard}>
-            <Text style={desktopStyles.formTitle}>Sign In</Text>
-            <Text style={desktopStyles.formSubtitle}>Welcome back</Text>
-            {formContent}
+            <Text style={desktopStyles.formTitle}>{pendingMfa ? 'Verification' : 'Sign In'}</Text>
+            <Text style={desktopStyles.formSubtitle}>{pendingMfa ? 'ECC Manager' : 'Welcome back'}</Text>
+            {activeForm}
           </View>
         </View>
       </View>
@@ -137,7 +211,7 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
-        {formContent}
+        {activeForm}
       </View>
     </KeyboardAvoidingView>
   );
@@ -249,6 +323,35 @@ const styles = StyleSheet.create({
   },
   footerLinkDesktop: {
     color: COLORS.primary,
+  },
+  mfaHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  mfaTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  mfaTitleDesktop: {
+    color: COLORS.text,
+  },
+  mfaSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  mfaSubtitleDesktop: {
+    color: COLORS.textSecondary,
+  },
+  codeInput: {
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 10,
   },
 });
 

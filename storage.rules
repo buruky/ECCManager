@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function callerDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isManager() {
+      return isAuthenticated() &&
+        callerDoc().role == 'manager' &&
+        callerDoc().isActive == true;
+    }
+
+    match /documents/{caseId}/{fileName} {
+      // Any authenticated staff can read and download case documents
+      allow read: if isAuthenticated();
+
+      // Any authenticated staff can upload; max 20 MB, PDF / Word / common images only
+      allow create: if isAuthenticated()
+        && request.resource.size <= 20 * 1024 * 1024
+        && request.resource.contentType.matches(
+             '(application/pdf|application/msword|application/vnd[.]openxmlformats.*|image/(jpeg|png|gif|webp))'
+           );
+
+      // Documents are immutable once uploaded
+      allow update: if false;
+
+      // Only managers may delete documents
+      allow delete: if isManager();
+    }
+  }
+}
